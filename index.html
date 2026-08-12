@@ -88,6 +88,7 @@ textarea{min-height:76px;resize:vertical;line-height:1.55}
 input:focus,select:focus,textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(179,135,63,.13)}
 .form{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));align-items:end}
 .form .wide{grid-column:1/-1}
+.op-fields{display:none;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
 .chips{display:flex;flex-wrap:wrap;gap:7px}
 .chip{min-height:34px;padding:6px 13px;border:1px solid var(--line);background:#fff;border-radius:20px;font-size:13px;cursor:pointer;color:var(--ink2)}
 .chip.on{background:var(--green);border-color:var(--green);color:#fff}
@@ -768,7 +769,16 @@ function normalize(){
     if(c.needBeds==null)c.needBeds=0;
     if(c.needBaths==null)c.needBaths=0;
   });
-  (D.deals||[]).forEach(function(d){if(typeof d.splitPct!=='number')d.splitPct=0;if(d.viewingId==null)d.viewingId='';});
+  (D.deals||[]).forEach(function(d){
+    if(typeof d.splitPct!=='number')d.splitPct=0;
+    if(d.viewingId==null)d.viewingId='';
+    if(!d.dealType)d.dealType='现房';
+    if(d.developer==null)d.developer='';
+    if(d.project==null)d.project='';
+    if(d.unit==null)d.unit='';
+    if(d.layout==null)d.layout='';
+    if(d.converted!==true)d.converted=false;
+  });
   (D.viewings||[]).forEach(function(v){if(v.dealId==null)v.dealId='';});
   (D.tasks||[]).forEach(function(t){if(typeof t.done!=='boolean')t.done=!!t.done;});
   (D.listings||[]).forEach(function(o){
@@ -793,7 +803,7 @@ function normalize(){
 function load(){
   var raw=null;
   try{raw=localStorage.getItem(KEY)}catch(e){corrupted=true;D=blank();seed();return}
-  if(!raw){D=blank();seed();D.meta.demo=true;save(true);return}
+  if(!raw){D=blank();seed();normalize();D.meta.demo=true;save(true);return}
   try{
     var o=JSON.parse(raw);
     if(!o||typeof o!=='object'||(!Array.isArray(o.tasks)&&!Array.isArray(o.todos)))throw new Error('结构异常');
@@ -803,8 +813,8 @@ function load(){
     D=o;normalize();
     try{save()}catch(e3){}
     try{localStorage.setItem(BAK,raw)}catch(e2){}
-  }catch(err){
-    corrupted=true;D=blank();
+  }  catch(err){
+    corrupted=true;D=blank();normalize();
   }
 }
 function save(silent){
@@ -2427,6 +2437,27 @@ function exportListingsExcel(){
    ========================================================== */
 var DEALF='全部', DEAL_PAGE=0, DEAL_PAGE_SIZE=30;
 var DEAL_STATUS=['签约','过户','已收佣金'];
+/* 期房子段组显隐：p 为前缀 d/ed */
+function toggleOffplan(p){p=p||'d';var sel=$('dType');if(p==='ed')sel=$('edType');var el=$('opFields');if(el&&sel)el.style.display=(sel.value==='期房')?'grid':'none';}
+/* A+B：拿到佣金后，客户转业主 + 成交房源挂业主（期房无关联房源时自动生成业主房源记录） */
+function dealConvertToOwner(d){
+  if(d.converted)return;
+  var _cc=(D.clients||[]).filter(function(x){return x.id===d.clientId})[0];
+  var li=d.listingId?(D.listings||[]).filter(function(x){return x.id===d.listingId})[0]:null;
+  var _unit=d.unit||(li?li.unit:'');
+  if(_cc){
+    _cc.level='D 已成交';
+    _cc.ctype='owner';
+    if(_unit && !_cc.addr)_cc.addr=_unit;
+  }
+  if(li){
+    li.ownerId=d.clientId; li.ownerName=_cc?_cc.name:'';
+    if(d.dealType==='期房'){ li.developer=d.developer; li.dealType='期房'; }
+  } else if(d.dealType==='期房' && (d.project||d.unit)){
+    D.listings.unshift({id:uid(),project:d.project,phase:'',unit:d.unit,layout:d.layout,price:d.price,status:'业主房源',isListing:'是',ownerId:d.clientId,ownerName:_cc?_cc.name:'',developer:d.developer,dealType:'期房',createdAt:toDay()});
+  }
+  d.converted=true;
+}
 function dealCommission(d){return (+d.price||0)*(+d.commissionPct||0)/100;}
 function dealAgg(list){var vol=0,comm=0,actual=0;list.forEach(function(d){var c=dealCommission(d);vol+=(+d.price||0);comm+=c;actual+=c*(1-((+d.splitPct||0)/100));});return {vol:vol,comm:comm,actual:actual,pct:vol>0?comm/vol:0};}
 function dealClientOptions(sel){
@@ -2478,13 +2509,14 @@ function renderDeals(){
   if(DEAL_PAGE>=pages)DEAL_PAGE=pages-1;
   var page=list.slice(DEAL_PAGE*DEAL_PAGE_SIZE,(DEAL_PAGE+1)*DEAL_PAGE_SIZE);
   $('dealList').innerHTML=total?(
-    '<table><thead><tr><th>客户</th><th>房源</th><th class="right">成交价</th><th class="right">佣金比例</th><th class="right">佣金</th><th>分成</th><th>入账</th><th>状态</th><th>日期</th><th class="right">操作</th></tr></thead><tbody>'+
+    '<table><thead><tr><th>客户</th><th>房源</th><th>开发商</th><th class="right">成交价</th><th class="right">佣金比例</th><th class="right">佣金</th><th>分成</th><th>入账</th><th>状态</th><th>日期</th><th class="right">操作</th></tr></thead><tbody>'+
     page.map(function(d){
       var _ca=(D.clients||[]).filter(function(x){return x.id===d.clientId})[0];
       var _vv = d.viewingId?(D.viewings||[]).filter(function(x){return x.id===d.viewingId})[0]:null;
       return '<tr>'+
         '<td data-l="客户"><b>'+esc(d.clientName||'')+'</b></td>'+
-        '<td data-l="房源">'+(d.listingTitle||'—')+'<div class="tiny muted">房号 '+( _ca?esc(_ca.addr||'—'):'—')+'</div>'+(d.viewingId?'<div class="tiny" style="color:var(--gold)">↳ 来自带看 '+esc(_vv?(_vv.date||''):'')+'</div>':'')+'</td>'+
+        '<td data-l="房源">'+(d.dealType==='期房'?'<span class="tag" style="background:#e8f0ff;color:#2b5cc4;margin-right:4px">期房</span>':'')+(d.listingTitle||'—')+'<div class="tiny muted">房号 '+( _ca?esc(_ca.addr||'—'):'—')+'</div>'+(d.viewingId?'<div class="tiny" style="color:var(--gold)">↳ 来自带看 '+esc(_vv?(_vv.date||''):'')+'</div>':'')+'</td>'+
+        '<td data-l="开发商">'+(d.developer?esc(d.developer):'—')+'</td>'+
         '<td data-l="成交价" class="right">'+money(d.price)+'</td>'+
         '<td data-l="比例" class="right">'+(+d.commissionPct||0)+'%</td>'+
         '<td data-l="佣金" class="right"><b>'+money(dealCommission(d))+'</b></td>'+
@@ -2511,6 +2543,13 @@ function newDeal(viewingId){
     (vd?'<div class="tiny muted" style="margin:0 0 10px;padding:8px 10px;background:#f6f7f8;border-radius:8px">来源带看：'+esc(vd.date||'')+' '+esc(vd.time||'')+' · '+esc(vd.listingTitle||'')+'</div>':'')+
     '<div><label class="f">关联客户</label><select id="dClient">'+dealClientOptions(preClient)+'</select></div>'+
     '<div><label class="f">关联房源</label><select id="dListing"></select></div>'+
+    '<div><label class="f">交易类型</label><select id="dType" onchange="toggleOffplan()"><option value="现房">现房</option><option value="期房">期房</option></select></div>'+
+    '<div><label class="f">开发商</label><input id="dDev" placeholder="例：Emaar / DAMAC"></div>'+
+    '<div class="op-fields" id="opFields" style="display:none">'+
+      '<div><label class="f">项目名称</label><input id="dProj" placeholder="例：The Valley"></div>'+
+      '<div><label class="f">房号</label><input id="dUnit" placeholder="例：TV3-1205"></div>'+
+      '<div><label class="f">户型</label><input id="dLayout" placeholder="例：3房3卫"></div>'+
+    '</div>'+
     '<div><label class="f">成交价 AED</label><input type="number" inputmode="decimal" id="dPrice" placeholder="0" value="'+esc(prePrice||'')+'"></div>'+
     '<div><label class="f">佣金比例 %</label><input type="number" inputmode="decimal" id="dPct" placeholder="例：2" value="2"></div>'+
     '<div><label class="f">分成比例 %（与机构/搭档分）</label><input type="number" inputmode="decimal" id="dSplit" placeholder="例：50"></div>'+
@@ -2521,6 +2560,7 @@ function newDeal(viewingId){
     '</div><div class="foot"><button class="btn ghost" onclick="closeMask()">取消</button><button class="btn" onclick="addDeal()">保存成交</button></div>';
   $('modal').innerHTML=html;
   setv('dClient',preClient);setv('dPct','2');setv('dStatus','签约');setv('dNote','');setv('dSplit','');setv('dPay','转账');setv('dDate',preDate);
+  setv('dType','现房');setv('dDev','');setv('dProj','');setv('dUnit','');setv('dLayout','');toggleOffplan();
   $('dListing').innerHTML=(D.listings||[]).length?'<option value="">— 无（纯佣金单）—</option>'+dealListingOptions(preListing):'<option value="">— 暂无房源 —</option>';
   $('dListing').value=preListing;
   $('mask').classList.add('on');
@@ -2532,31 +2572,37 @@ function addDeal(){
   var cl=(D.clients||[]).filter(function(x){return x.id===clientId})[0];
   var listingId=val('dListing')||'';
   var li=listingId?(D.listings||[]).filter(function(x){return x.id===listingId})[0]:null;
+  var dealType=val('dType')||'现房';
+  var developer=val('dDev')||'';
+  var project=val('dProj')||'';
+  var unit=val('dUnit')||'';
+  var layout=val('dLayout')||'';
+  var status=val('dStatus')||'签约';
   var id=uid();
   var viewingId=val('dViewing')||'';
-  D.deals.unshift({id:id,clientId:clientId,clientName:cl?cl.name:'',listingId:listingId,listingTitle:li?((li.project||'')+' '+(li.phase||'')):'',price:price,commissionPct:pct,splitPct:split,payMode:pay,status:val('dStatus')||'签约',date:val('dDate')||toDay(),note:val('dNote'),createdAt:toDay(),viewingId:viewingId});
+  var listingTitle=li?((li.project||'')+' '+(li.phase||'')):(dealType==='期房'?(project||'期房成交'):'');
+  var nd={id:id,clientId:clientId,clientName:cl?cl.name:'',listingId:listingId,listingTitle:listingTitle,dealType:dealType,developer:developer,project:project,unit:unit,layout:layout,price:price,commissionPct:pct,splitPct:split,payMode:pay,status:status,date:val('dDate')||toDay(),note:val('dNote'),createdAt:toDay(),viewingId:viewingId,converted:false};
+  D.deals.unshift(nd);
   if(viewingId){ var vv=(D.viewings||[]).filter(function(x){return x.id===viewingId})[0]; if(vv){ vv.dealId=id; vv.done=true; } }
-  var _cc=(D.clients||[]).filter(function(x){return x.id===clientId})[0];
-  if(_cc){
-    _cc.level='D 已成交';
-    _cc.ctype='owner';                         // A：成交客户自动转为业主
-    if(li && li.unit && !_cc.addr)_cc.addr=li.unit;   // 记下他买到的房号
-  }
-  if(li){                                       // B：成交房源挂上业主
-    li.ownerId=clientId;
-    li.ownerName=_cc?_cc.name:'';
-  }
+  if(status==='已收佣金') dealConvertToOwner(nd);
   counted();
   if(save()){
     closeMask();
     if(viewingId){ go('deals'); } else { renderDeals(); }
     renderViewings();
-    toast('成交已登记'+(viewingId?'，已关联来源带看':''));
+    toast('成交已登记'+(viewingId?'，已关联来源带看':'')+(status==='已收佣金'?'，已自动转业主房源':''));
   }
 }
 function editDeal(id){
   var d=(D.deals||[]).filter(function(x){return x.id===id})[0];if(!d)return;
   $('modal').innerHTML='<h3>编辑成交</h3><div class="form" style="margin-top:12px">'+
+    '<div><label class="f">交易类型</label><select id="edType" onchange="toggleOffplan(\'ed\')"><option value="现房" '+(d.dealType!=='期房'?'selected':'')+'>现房</option><option value="期房" '+(d.dealType==='期房'?'selected':'')+'>期房</option></select></div>'+
+    '<div><label class="f">开发商</label><input id="edDev" value="'+esc(d.developer||'')+'"></div>'+
+    '<div class="op-fields" id="opFields" style="display:'+(d.dealType==='期房'?'grid':'none')+'">'+
+      '<div><label class="f">项目名称</label><input id="edProj" value="'+esc(d.project||'')+'"></div>'+
+      '<div><label class="f">房号</label><input id="edUnit" value="'+esc(d.unit||'')+'"></div>'+
+      '<div><label class="f">户型</label><input id="edLayout" value="'+esc(d.layout||'')+'"></div>'+
+    '</div>'+
     '<div><label class="f">成交价 AED</label><input type="number" inputmode="decimal" id="edPrice" value="'+esc(d.price)+'"></div>'+
     '<div><label class="f">佣金比例 %</label><input type="number" inputmode="decimal" id="edPct" value="'+esc(d.commissionPct)+'"></div>'+
     '<div><label class="f">状态</label><select id="edStatus"><option '+(d.status==='签约'?'selected':'')+'>签约</option><option '+(d.status==='过户'?'selected':'')+'>过户</option><option '+(d.status==='已收佣金'?'selected':'')+'>已收佣金</option></select></div>'+
@@ -2567,8 +2613,14 @@ function editDeal(id){
 }
 function saveDeal(id){
   var d=(D.deals||[]).filter(function(x){return x.id===id})[0];if(!d)return;
+  d.dealType=val('edType')||'现房';
+  d.developer=val('edDev')||'';
+  d.project=val('edProj')||'';
+  d.unit=val('edUnit')||'';
+  d.layout=val('edLayout')||'';
   d.price=+val('edPrice')||0;d.commissionPct=+val('edPct')||0;d.status=val('edStatus');d.date=val('edDate')||d.date;d.note=val('edNote');
-  save();closeMask();renderDeals();toast('已保存');
+  if(d.status==='已收佣金'){ if(!d.listingTitle)d.listingTitle=d.project||'期房成交'; dealConvertToOwner(d); }
+  save();closeMask();renderDeals();toast('已保存'+(d.status==='已收佣金'&&d.converted?'，已自动转业主房源':''));
 }
 function delDeal(id){
   confirmBox('删除成交','这条成交记录将被永久删除。','删除',function(){
@@ -2590,11 +2642,11 @@ function openViewingSource(id){
   $('mask').classList.add('on');
 }
 function exportDealsExcel(){
-  var head=['客户','房源','房号','成交价(AED)','佣金比例','佣金(AED)','分成%','入账方式','状态','日期','来源带看','备注'];
+  var head=['客户','房源','房号','成交价(AED)','佣金比例','佣金(AED)','分成%','入账方式','状态','日期','来源带看','备注','开发商','交易类型'];
   var rows=(D.deals||[]).slice().sort(function(a,b){return (b.date||'')<(a.date||'')?-1:1}).map(function(d){
     var ca=(D.clients||[]).filter(function(x){return x.id===d.clientId})[0];
     var vv=d.viewingId?(D.viewings||[]).filter(function(x){return x.id===d.viewingId})[0]:null;
-    return [d.clientName||'',d.listingTitle||'',ca?ca.addr:'',(+d.price||0),(+d.commissionPct||0)+'%',Math.round(dealCommission(d)),(+d.splitPct||0)+'%',d.payMode||'',d.status||'',d.date||'',vv?(vv.date||''):'',d.note||''];
+    return [d.clientName||'',d.listingTitle||'',ca?ca.addr:'',(+d.price||0),(+d.commissionPct||0)+'%',Math.round(dealCommission(d)),(+d.splitPct||0)+'%',d.payMode||'',d.status||'',d.date||'',vv?(vv.date||''):'',d.note||'',d.developer||'',d.dealType||'现房'];
   });
   var t='<table border="1"><tr>'+head.map(function(h){return '<th style="background:#1e3b33;color:#fff">'+h+'</th>'}).join('')+'</tr>'+
     rows.map(function(r){return '<tr>'+r.map(function(c){return '<td>'+esc(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';
