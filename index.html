@@ -503,7 +503,7 @@ svg.chart{display:block;width:100%;height:auto;overflow:visible}
       <div><label class="f">意向</label><select id="cNeedStatus"><option>不限</option><option>可售</option><option>可租</option></select></div>
       <div><label class="f">预算下限 AED</label><input type="number" inputmode="decimal" id="cBudgetMin" placeholder="如 2000000"></div>
       <div><label class="f">预算上限 AED</label><input type="number" inputmode="decimal" id="cBudgetMax" placeholder="如 2600000"></div>
-      <div><label class="f">户型需求</label><input id="cNeedType" placeholder="如 2BR / 联排 / Studio"></div>
+      <div style="display:flex;gap:8px"><div style="flex:1"><label class="f">卧室(室)</label><input type="number" inputmode="numeric" id="cNeedBeds" placeholder="如 2"></div><div style="flex:1"><label class="f">卫生间(卫)</label><input type="number" inputmode="numeric" id="cNeedBaths" placeholder="如 2"></div></div>
       <div><label class="f">面积下限 ㎡</label><input type="number" inputmode="decimal" id="cNeedArea" placeholder="如 150"></div>
       <div><label class="f">区域偏好</label><input id="cNeedRegion" placeholder="如 The Valley / Marina"></div>
       <div class="wide"><label class="f">需求备注（目的 / 关注点 / 家庭情况）</label><textarea id="cNote" placeholder="例：看重学区与交付即入住，家庭自住"></textarea></div>
@@ -760,6 +760,15 @@ function normalize(){
     if(typeof c.stage!=='number')c.stage=0;
     if(!c.intent)c.intent='unknown';
     if(!c.ctype)c.ctype='buyer';
+    if(c.needBeds==null||c.needBaths==null){
+      var s=(c.needType!=null)?String(c.needType):'';
+      var bm=s.match(/(\d+)\s*房/),wm=s.match(/房[^卫]*?(\d+)\s*卫/);
+      c.needBeds=bm?parseInt(bm[1],10):0;
+      c.needBaths=wm?parseInt(wm[1],10):0;
+      delete c.needType;
+    }
+    if(c.needBeds==null)c.needBeds=0;
+    if(c.needBaths==null)c.needBaths=0;
   });
   (D.deals||[]).forEach(function(d){if(typeof d.splitPct!=='number')d.splitPct=0;});
   (D.tasks||[]).forEach(function(t){if(typeof t.done!=='boolean')t.done=!!t.done;});
@@ -1508,9 +1517,9 @@ function addClient(){
   D.clients.unshift({id:uid(),name:n,phone:val('cPhone'),wx:val('cWx'),email:val('cEmail'),whatsapp:val('cWhatsapp'),addr:val('cAddr'),homeAddr:val('cHomeAddr'),birth:val('cBirth'),
     level:val('cLevel'),src:val('cSrc'),first:val('cFirst')||toDay(),note:val('cNote'),stage:0,logs:[],createdAt:toDay(),ctype:val('cType')||'buyer',intent:'unknown',
     needStatus:val('cNeedStatus')||'不限',budgetMin:parseFloat(val('cBudgetMin'))||0,budgetMax:parseFloat(val('cBudgetMax'))||0,
-    needType:val('cNeedType')||'',needArea:parseFloat(val('cNeedArea'))||0,needRegion:val('cNeedRegion')||''});
+    needBeds:parseInt(val('cNeedBeds'))||0,needBaths:parseInt(val('cNeedBaths'))||0,needArea:parseFloat(val('cNeedArea'))||0,needRegion:val('cNeedRegion')||''});
   counted();
-  if(save()){['cName','cPhone','cWx','cEmail','cWhatsapp','cAddr','cBirth','cFirst','cNote','cBudgetMin','cBudgetMax','cNeedType','cNeedArea','cNeedRegion'].forEach(function(i){setv(i,'')});renderAll();toast('客户已建档，跟进节奏已启动')}
+  if(save()){['cName','cPhone','cWx','cEmail','cWhatsapp','cAddr','cBirth','cFirst','cNote','cBudgetMin','cBudgetMax','cNeedBeds','cNeedBaths','cNeedArea','cNeedRegion'].forEach(function(i){setv(i,'')});renderAll();toast('客户已建档，跟进节奏已启动')}
 }
 function delClient(id){
   confirmBox('删除客户','该客户的全部跟进记录也会一并删除。','删除',function(){
@@ -1553,7 +1562,7 @@ function clientDetail(id){
   var needs=[];
   if(c.needStatus&&c.needStatus!=='不限')needs.push(c.needStatus);
   if(c.budgetMin||c.budgetMax)needs.push('预算 '+(c.budgetMin?money(c.budgetMin):'—')+'–'+(c.budgetMax?money(c.budgetMax):'∞'));
-  if(c.needType)needs.push('户型 '+c.needType);
+  if(c.needBeds||c.needBaths)needs.push('户型 '+huxingLabel(c.needBeds,c.needBaths));
   if(c.needArea)needs.push('面积≥'+c.needArea+'㎡');
   if(c.needRegion)needs.push('区域 '+c.needRegion);
   var rows=[['客户类型',ctypeLabel(c.ctype)],['委托状态',intentLabel(c.intent).t],['电话',c.phone],['微信号',c.wx],['邮箱',c.email],['WhatsApp',c.whatsapp],['房源地址/房号',c.addr],['实际居住地址',c.homeAddr],['生日',c.birth?c.birth+'（'+cnDate(c.birth)+'）':''],['意向等级',c.level],['来源',c.src],['首次联系',c.first],['跟进节点',n.label+' · '+n.date+(late?'（已延误）':'')]];
@@ -1594,7 +1603,7 @@ function editClient(id){
     '<div><label class="f">意向</label><select id="ecNeedStatus"><option '+(c.needStatus==='不限'?'selected':'')+'>不限</option><option '+(c.needStatus==='可售'?'selected':'')+'>可售</option><option '+(c.needStatus==='可租'?'selected':'')+'>可租</option></select></div>'+
     '<div><label class="f">预算下限 AED</label><input type="number" inputmode="decimal" id="ecBudgetMin" value="'+esc(c.budgetMin||'')+'"></div>'+
     '<div><label class="f">预算上限 AED</label><input type="number" inputmode="decimal" id="ecBudgetMax" value="'+esc(c.budgetMax||'')+'"></div>'+
-    '<div><label class="f">户型需求</label><input id="ecNeedType" value="'+esc(c.needType||'')+'"></div>'+
+    '<div style="display:flex;gap:8px"><div style="flex:1"><label class="f">卧室(室)</label><input type="number" inputmode="numeric" id="ecNeedBeds" value="'+esc(c.needBeds||'')+'"></div><div style="flex:1"><label class="f">卫生间(卫)</label><input type="number" inputmode="numeric" id="ecNeedBaths" value="'+esc(c.needBaths||'')+'"></div></div>'+
     '<div><label class="f">面积下限 ㎡</label><input type="number" inputmode="decimal" id="ecNeedArea" value="'+esc(c.needArea||'')+'"></div>'+
     '<div><label class="f">区域偏好</label><input id="ecNeedRegion" value="'+esc(c.needRegion||'')+'"></div>'+
     '<div><label class="f">跟进节点</label><select id="ecStage">'+LADDER.map(function(l,i){return '<option value="'+i+'" '+((c.stage||0)===i?'selected':'')+'>'+l.l+'</option>'}).join('')+
@@ -1607,7 +1616,7 @@ function saveClient(id){
   var c=(D.clients||[]).filter(function(x){return x.id===id})[0];if(!c)return;
   c.name=val('ecName')||c.name;c.phone=val('ecPhone');c.wx=val('ecWx');c.email=val('ecEmail');c.whatsapp=val('ecWhatsapp');c.birth=val('ecBirth');
   c.addr=val('ecAddr');c.homeAddr=val('ecHomeAddr');c.first=val('ecFirst')||c.first;c.stage=parseInt(val('ecStage'),10)||0;c.note=val('ecNote');c.ctype=val('ecType')||c.ctype||'buyer';c.intent=val('ecIntent')||c.intent||'unknown';c.src=val('ecSrc')||c.src||'';
-  c.needStatus=val('ecNeedStatus')||'不限';c.budgetMin=parseFloat(val('ecBudgetMin'))||0;c.budgetMax=parseFloat(val('ecBudgetMax'))||0;c.needType=val('ecNeedType')||'';c.needArea=parseFloat(val('ecNeedArea'))||0;c.needRegion=val('ecNeedRegion')||'';
+  c.needStatus=val('ecNeedStatus')||'不限';c.budgetMin=parseFloat(val('ecBudgetMin'))||0;c.budgetMax=parseFloat(val('ecBudgetMax'))||0;c.needBeds=parseInt(val('ecNeedBeds'))||0;c.needBaths=parseInt(val('ecNeedBaths'))||0;c.needArea=parseFloat(val('ecNeedArea'))||0;c.needRegion=val('ecNeedRegion')||'';
   save();closeMask();renderAll();toast('已保存');
 }
 function ownerUnit(c){
@@ -1693,7 +1702,7 @@ function renderClients(){
         '<td data-l="意向"><span class="tag '+(c.level&&c.level[0]==='A'?'gold':c.level&&c.level[0]==='D'?'ok':'blue')+'">'+esc(c.level||'—')+'</span></td>'+
         '<td data-l="下次跟进"><div class="'+(late?'':'muted')+'" style="font-size:13.5px;'+(late?'color:var(--red)':'')+'">'+esc(o.date)+' · '+relDay(o.date)+'</div>'+
         '<div class="tiny muted">'+esc(o.label)+' · 已跟进 '+((c.logs||[]).length)+' 次</div></td>'+
-        '<td data-l="预算需求"><span class="tiny">'+(c.budgetMin||c.budgetMax?('AED '+(c.budgetMin?money(c.budgetMin):'—')+'–'+(c.budgetMax?money(c.budgetMax):'∞'))+(c.needType?' · '+esc(c.needType):'')+(c.needRegion?' · '+esc(c.needRegion):''):'<span class="muted">—</span>')+'</span></td>'+
+        '<td data-l="预算需求"><span class="tiny">'+(c.budgetMin||c.budgetMax||c.needBeds||c.needBaths||c.needRegion?('AED '+(c.budgetMin?money(c.budgetMin):'—')+'–'+(c.budgetMax?money(c.budgetMax):'∞')+(c.needBeds||c.needBaths?(' · '+huxingLabel(c.needBeds,c.needBaths)):'')+(c.needRegion?' · '+esc(c.needRegion):'')):'<span class="muted">—</span>')+'</span></td>'+
         '<td data-l="操作" class="right"><div class="actions">'+
         '<button class="btn sm ghost" onclick="clientDetail(\''+c.id+'\')">详情</button>'+
         '<button class="btn sm '+(o.d<=0?'gold':'ghost')+'" onclick="followModal(\''+c.id+'\')">跟进</button></div></td></tr>';
@@ -1707,8 +1716,8 @@ function renderClients(){
 function exportClientsExcel(){
   var all=D.clients||[];
   if(!all.length){toast('还没有客户可导出');return;}
-  var head=['姓名','客户类型','委托状态','电话','微信','邮箱','WhatsApp','房源地址/房号','生日','实际居住地址','意向等级','来源','首次联系','跟进次数','意向(售/租)','预算下限','预算上限','户型需求','面积下限','区域偏好','备注'];
-  var rows=all.map(function(c){return [c.name||'',ctypeLabel(c.ctype),intentLabel(c.intent).t,c.phone||'',c.wx||'',c.email||'',c.whatsapp||'',c.addr||'',c.birth||'',c.homeAddr||'',c.level||'',c.src||'',c.first||'',(c.logs||[]).length,c.needStatus||'',c.budgetMin||0,c.budgetMax||0,c.needType||'',c.needArea||0,c.needRegion||'',c.note||'']});
+  var head=['姓名','客户类型','委托状态','电话','微信','邮箱','WhatsApp','房源地址/房号','生日','实际居住地址','意向等级','来源','首次联系','跟进次数','意向(售/租)','预算下限','预算上限','需求卧室','需求卫','面积下限','区域偏好','备注'];
+  var rows=all.map(function(c){return [c.name||'',ctypeLabel(c.ctype),intentLabel(c.intent).t,c.phone||'',c.wx||'',c.email||'',c.whatsapp||'',c.addr||'',c.birth||'',c.homeAddr||'',c.level||'',c.src||'',c.first||'',(c.logs||[]).length,c.needStatus||'',c.budgetMin||0,c.budgetMax||0,c.needBeds||0,c.needBaths||0,c.needArea||0,c.needRegion||'',c.note||'']});
   var t='<table border="1"><tr>'+head.map(function(h){return '<th style="background:#1e3b33;color:#fff">'+h+'</th>'}).join('')+'</tr>'+
     rows.map(function(r){return '<tr>'+r.map(function(c){return '<td>'+esc(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';
   var html='<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body>'+t+'</body></html>';
@@ -1732,8 +1741,8 @@ function _matchScore(o,c){
   }
   var na=+c.needArea||0;
   if(na){has=true;if(+(o.areaSqm||o.area)>=na){reasons.push('面积≥'+na);score++}else ok=false;}
-  var nt=(c.needType||'').trim().toLowerCase();
-  if(nt){has=true;var tl=listingTypeLabel(o);if(tl&&tl.toLowerCase().indexOf(nt)>=0){reasons.push('户型·'+c.needType);score++}else ok=false;}
+  var nb=+c.needBeds||0,nw=+c.needBaths||0;
+  if(nb||nw){has=true;var ob=+o.beds||0,ow=+o.baths||0;if((!nb||ob>=nb)&&(!nw||ow>=nw)){reasons.push('户型·'+huxingLabel(nb,nw));score++}else ok=false;}
   var nr=(c.needRegion||'').trim().toLowerCase();
   if(nr){has=true;var hay=((o.project||'')+' '+(o.phase||'')).toLowerCase();if(hay.indexOf(nr)>=0){reasons.push('区域·'+c.needRegion);score++}else ok=false;}
   if(!has)ok=false;
@@ -1755,7 +1764,7 @@ function openMatchForClient(id){
   var needStr=[];
   if(c.needStatus&&c.needStatus!=='不限')needStr.push(c.needStatus);
   if(c.budgetMin||c.budgetMax)needStr.push('预算 '+(c.budgetMin?money(c.budgetMin):'—')+'–'+(c.budgetMax?money(c.budgetMax):'∞'));
-  if(c.needType)needStr.push('户型'+c.needType);
+  if(c.needBeds||c.needBaths)needStr.push('户型'+huxingLabel(c.needBeds,c.needBaths));
   if(c.needArea)needStr.push('面积≥'+c.needArea+'㎡');
   if(c.needRegion)needStr.push('区域'+c.needRegion);
   var body=ms.length?('<div style="margin:6px 0 12px">共匹配到 <b>'+ms.length+'</b> 套</div>'+ms.map(function(m){var o=m.o;return '<div class="row" style="padding:10px 0"><div class="grow"><div style="font-size:15px">'+esc(o.project)+' <span class="tag '+(o.status==='可租'?'rent':'ok')+'">'+esc(o.status)+'</span>'+(o.isListing!=='否'?' <span class="tag" style="background:#e4efe8;color:#27ae60">listing</span>':'')+'</div><div class="tiny muted">'+esc(o.phase||'—')+' · '+esc(o.unit||'—')+(o.areaSqm?(' · '+o.areaSqm+'㎡'+(o.areaSqft?(' / '+o.areaSqft+'sqft'):'')):'')+(listingTypeLabel(o)?(' · '+listingTypeLabel(o)):'')+' · AED '+(o.status==='可租'?money(o.rent):money(o.price))+'</div><div style="margin-top:5px">'+m.reasons.map(function(r){return '<span class="tag" style="background:#eef4f1;color:#2e7d52">'+esc(r)+'</span>'}).join(' ')+'</div></div><button class="btn sm ghost" onclick="closeMask();listingDetail(\''+o.id+'\')">看房源</button></div>';}).join(''))
@@ -2153,6 +2162,7 @@ function syncArea(fromId,toId,dir){
 }
 /* 户型标签：室(房)数 + 卫数 → "2房2卫"，用于展示与智能匹配（对接客户「户型需求」） */
 function listingTypeLabel(o){var b=+o.beds||0,w=+o.baths||0;if(!b&&!w)return '';return (b?b+'房':'')+(w?w+'卫':'');}
+function huxingLabel(b,w){b=+b||0;w=+w||0;if(!b&&!w)return '';return (b?b+'房':'')+(w?w+'卫':'');}
 function ownerNameFromId(id){if(!id)return '';var c=(D.clients||[]).filter(function(x){return x.id===id})[0];return c?c.name:'';}
 function listingOwnerOptions(sel,q){
   var cs=(D.clients||[]);
@@ -2708,7 +2718,7 @@ var QA_SEL='vClient';
 function quickNewClient(name,phone,channel){
   var id=uid();
   var isAgent=channel==='agent';
-  D.clients.unshift({id:id,name:name,phone:phone||'',ctype:isAgent?'agent':'buyer',level:'未成交',src:qaChannelLabel(channel),first:toDay(),note:'',stage:0,logs:[],createdAt:toDay(),intent:'unknown',needStatus:'',budgetMin:0,budgetMax:0,needType:'',needArea:0,needRegion:'',addr:'',homeAddr:'',birth:'',wx:'',email:'',whatsapp:''});
+  D.clients.unshift({id:id,name:name,phone:phone||'',ctype:isAgent?'agent':'buyer',level:'未成交',src:qaChannelLabel(channel),first:toDay(),note:'',stage:0,logs:[],createdAt:toDay(),intent:'unknown',needStatus:'',budgetMin:0,budgetMax:0,needBeds:0,needBaths:0,needArea:0,needRegion:'',addr:'',homeAddr:'',birth:'',wx:'',email:'',whatsapp:''});
   counted();save();return id;
 }
 function qaSave(){
