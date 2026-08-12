@@ -767,7 +767,8 @@ function normalize(){
     if(c.needBeds==null)c.needBeds=0;
     if(c.needBaths==null)c.needBaths=0;
   });
-  (D.deals||[]).forEach(function(d){if(typeof d.splitPct!=='number')d.splitPct=0;});
+  (D.deals||[]).forEach(function(d){if(typeof d.splitPct!=='number')d.splitPct=0;if(d.viewingId==null)d.viewingId='';});
+  (D.viewings||[]).forEach(function(v){if(v.dealId==null)v.dealId='';});
   (D.tasks||[]).forEach(function(t){if(typeof t.done!=='boolean')t.done=!!t.done;});
   (D.listings||[]).forEach(function(o){
     if(!Array.isArray(o.follows))o.follows=[];
@@ -2471,9 +2472,10 @@ function renderDeals(){
     '<table><thead><tr><th>客户</th><th>房源</th><th class="right">成交价</th><th class="right">佣金比例</th><th class="right">佣金</th><th>分成</th><th>入账</th><th>状态</th><th>日期</th><th class="right">操作</th></tr></thead><tbody>'+
     page.map(function(d){
       var _ca=(D.clients||[]).filter(function(x){return x.id===d.clientId})[0];
+      var _vv = d.viewingId?(D.viewings||[]).filter(function(x){return x.id===d.viewingId})[0]:null;
       return '<tr>'+
         '<td data-l="客户"><b>'+esc(d.clientName||'')+'</b></td>'+
-        '<td data-l="房源">'+(d.listingTitle||'—')+'<div class="tiny muted">房号 '+( _ca?esc(_ca.addr||'—'):'—')+'</div></td>'+
+        '<td data-l="房源">'+(d.listingTitle||'—')+'<div class="tiny muted">房号 '+( _ca?esc(_ca.addr||'—'):'—')+'</div>'+(d.viewingId?'<div class="tiny" style="color:var(--gold)">↳ 来自带看 '+esc(_vv?(_vv.date||''):'')+'</div>':'')+'</td>'+
         '<td data-l="成交价" class="right">'+money(d.price)+'</td>'+
         '<td data-l="比例" class="right">'+(+d.commissionPct||0)+'%</td>'+
         '<td data-l="佣金" class="right"><b>'+money(dealCommission(d))+'</b></td>'+
@@ -2481,28 +2483,37 @@ function renderDeals(){
         '<td data-l="入账">'+(d.payMode||'—')+'</td>'+
         '<td data-l="状态">'+statusTag(d.status)+'</td>'+
         '<td data-l="日期" class="tiny muted">'+esc(d.date||'')+'</td>'+
-        '<td data-l="操作" class="right actions"><button class="btn sm ghost" onclick="editDeal(\''+d.id+'\')">编辑</button><button class="btn sm ghost" onclick="delDeal(\''+d.id+'\')">删除</button></td>'+
+        '<td data-l="操作" class="right actions">'+(d.viewingId?'<button class="btn sm ghost" onclick="openViewingSource(\''+d.viewingId+'\')">来源</button>':'')+'<button class="btn sm ghost" onclick="editDeal(\''+d.id+'\')">编辑</button><button class="btn sm ghost" onclick="delDeal(\''+d.id+'\')">删除</button></td>'+
       '</tr>';
     }).join('')+'</tbody></table>'+
     (pages>1?'<div class="pager"><button class="btn sm ghost" '+(DEAL_PAGE>0?'onclick="DEAL_PAGE--;renderDeals()"':'disabled')+'>‹ 上一页</button><span class="muted">第 '+(DEAL_PAGE+1)+' / '+pages+' 页</span><button class="btn sm ghost" '+(DEAL_PAGE<pages-1?'onclick="DEAL_PAGE++;renderDeals()"':'disabled')+'>下一页 ›</button></div>':'')
   ):'<div class="empty">还没有成交记录，点右上角「+ 新增成交」登记第一笔。</div>';
 }
-function newDeal(){
+function newDeal(viewingId){
+  var vd = viewingId?(D.viewings||[]).filter(function(x){return x.id===viewingId})[0]:null;
   var firstClient=(D.clients||[])[0];
-  var html='<h3>登记成交</h3><div class="form" style="margin-top:12px">'+
-    '<div><label class="f">关联客户</label><select id="dClient">'+dealClientOptions(firstClient?firstClient.id:'')+'</select></div>'+
-    '<div><label class="f">关联房源</label><select id="dListing"><option value="">— 无（纯佣金单）—</option>'+dealListingOptions('')+'</select></div>'+
-    '<div><label class="f">成交价 AED</label><input type="number" inputmode="decimal" id="dPrice" placeholder="0"></div>'+
+  var preClient = vd? vd.clientId : (firstClient?firstClient.id:'');
+  var preListing = (vd && vd.listingId && vd.listingId.indexOf('c:')!==0)? vd.listingId : '';
+  var preLi = preListing? (D.listings||[]).filter(function(x){return x.id===preListing})[0] : null;
+  var prePrice = preLi? preLi.price||0 : 0;
+  var preDate = vd? vd.date : toDay();
+  var html='<h3>'+(vd?('从带看转成交 · '+esc(vd.clientName||'')):'登记成交')+'</h3><div class="form" style="margin-top:12px">'+
+    '<input type="hidden" id="dViewing" value="'+esc(viewingId||'')+'">'+
+    (vd?'<div class="tiny muted" style="margin:0 0 10px;padding:8px 10px;background:#f6f7f8;border-radius:8px">来源带看：'+esc(vd.date||'')+' '+esc(vd.time||'')+' · '+esc(vd.listingTitle||'')+'</div>':'')+
+    '<div><label class="f">关联客户</label><select id="dClient">'+dealClientOptions(preClient)+'</select></div>'+
+    '<div><label class="f">关联房源</label><select id="dListing"></select></div>'+
+    '<div><label class="f">成交价 AED</label><input type="number" inputmode="decimal" id="dPrice" placeholder="0" value="'+esc(prePrice||'')+'"></div>'+
     '<div><label class="f">佣金比例 %</label><input type="number" inputmode="decimal" id="dPct" placeholder="例：2" value="2"></div>'+
     '<div><label class="f">分成比例 %（与机构/搭档分）</label><input type="number" inputmode="decimal" id="dSplit" placeholder="例：50"></div>'+
     '<div><label class="f">入账方式</label><select id="dPay"><option>转账</option><option>现金</option><option>支票</option></select></div>'+
     '<div><label class="f">状态</label><select id="dStatus"><option>签约</option><option>过户</option><option>已收佣金</option></select></div>'+
-    '<div><label class="f">成交日期</label><input type="date" id="dDate"></div>'+
+    '<div><label class="f">成交日期</label><input type="date" id="dDate" value="'+esc(preDate||'')+'"></div>'+
     '<div class="wide"><label class="f">备注（房源亮点 / 分成说明）</label><textarea id="dNote" placeholder="选填"></textarea></div>'+
     '</div><div class="foot"><button class="btn ghost" onclick="closeMask()">取消</button><button class="btn" onclick="addDeal()">保存成交</button></div>';
   $('modal').innerHTML=html;
-  setv('dClient',firstClient?firstClient.id:'');setv('dPrice','');setv('dPct','2');setv('dStatus','签约');setv('dDate',toDay());setv('dNote','');setv('dSplit','');setv('dPay','转账');
-  $('dListing').innerHTML=(D.listings||[]).length?'<option value="">— 无（纯佣金单）—</option>'+dealListingOptions(''):'<option value="">— 暂无房源 —</option>';
+  setv('dClient',preClient);setv('dPct','2');setv('dStatus','签约');setv('dNote','');setv('dSplit','');setv('dPay','转账');setv('dDate',preDate);
+  $('dListing').innerHTML=(D.listings||[]).length?'<option value="">— 无（纯佣金单）—</option>'+dealListingOptions(preListing):'<option value="">— 暂无房源 —</option>';
+  $('dListing').value=preListing;
   $('mask').classList.add('on');
 }
 function addDeal(){
@@ -2512,10 +2523,18 @@ function addDeal(){
   var cl=(D.clients||[]).filter(function(x){return x.id===clientId})[0];
   var listingId=val('dListing')||'';
   var li=listingId?(D.listings||[]).filter(function(x){return x.id===listingId})[0]:null;
-  D.deals.unshift({id:uid(),clientId:clientId,clientName:cl?cl.name:'',listingId:listingId,listingTitle:li?((li.project||'')+' '+(li.phase||'')):'',price:price,commissionPct:pct,splitPct:split,payMode:pay,status:val('dStatus')||'签约',date:val('dDate')||toDay(),note:val('dNote'),createdAt:toDay()});
+  var id=uid();
+  var viewingId=val('dViewing')||'';
+  D.deals.unshift({id:id,clientId:clientId,clientName:cl?cl.name:'',listingId:listingId,listingTitle:li?((li.project||'')+' '+(li.phase||'')):'',price:price,commissionPct:pct,splitPct:split,payMode:pay,status:val('dStatus')||'签约',date:val('dDate')||toDay(),note:val('dNote'),createdAt:toDay(),viewingId:viewingId});
+  if(viewingId){ var vv=(D.viewings||[]).filter(function(x){return x.id===viewingId})[0]; if(vv){ vv.dealId=id; vv.done=true; } }
   var _cc=(D.clients||[]).filter(function(x){return x.id===clientId})[0];if(_cc)_cc.level='D 已成交';
   counted();
-  if(save()){closeMask();renderDeals();toast('成交已登记')}
+  if(save()){
+    closeMask();
+    if(viewingId){ go('deals'); } else { renderDeals(); }
+    renderViewings();
+    toast('成交已登记'+(viewingId?'，已关联来源带看':''));
+  }
 }
 function editDeal(id){
   var d=(D.deals||[]).filter(function(x){return x.id===id})[0];if(!d)return;
@@ -2538,11 +2557,26 @@ function delDeal(id){
     D.deals=D.deals.filter(function(x){return x.id!==id});save();renderDeals();
   },true);
 }
+function openViewingSource(id){
+  var v=(D.viewings||[]).filter(function(x){return x.id===id})[0];if(!v)return;
+  var cl=(D.clients||[]).filter(function(x){return x.id===v.clientId})[0];
+  var fb=v.feedback;
+  $('modal').innerHTML='<h3>成交来源 · 看房记录</h3><div class="form" style="margin-top:12px">'+
+    '<div><label class="f">客户</label><div class="grow">'+esc(v.clientName||'')+(cl&&cl.phone?(' · <span class="muted">'+esc(cl.phone)+'</span>'):'')+'</div></div>'+
+    '<div><label class="f">房源</label><div class="grow">'+esc(v.listingTitle||'')+'</div></div>'+
+    '<div><label class="f">带看时间</label><div class="grow">'+esc(v.date||'')+' '+esc(v.time||'')+'</div></div>'+
+    '<div><label class="f">地点</label><div class="grow">'+esc(v.place||'')+'</div></div>'+
+    (fb?('<div class="wide"><label class="f">看房反馈</label><div class="grow">意向：'+(fb.rating==='high'?'高':fb.rating==='mid'?'中':'低')+' · 下一步：'+esc(fb.next||'')+(fb.note?(' · '+esc(fb.note)):'')+'</div></div>'):'')+
+    '<div class="wide"><label class="f">备注</label><div class="grow">'+(esc(v.note||'')||'—')+'</div></div>'+
+    '</div><div class="foot"><button class="btn ghost" onclick="closeMask()">关闭</button><button class="btn" onclick="closeMask();go(\'viewings\')">去带看列表</button></div>';
+  $('mask').classList.add('on');
+}
 function exportDealsExcel(){
-  var head=['客户','房源','房号','成交价(AED)','佣金比例','佣金(AED)','分成%','入账方式','状态','日期','备注'];
+  var head=['客户','房源','房号','成交价(AED)','佣金比例','佣金(AED)','分成%','入账方式','状态','日期','来源带看','备注'];
   var rows=(D.deals||[]).slice().sort(function(a,b){return (b.date||'')<(a.date||'')?-1:1}).map(function(d){
     var ca=(D.clients||[]).filter(function(x){return x.id===d.clientId})[0];
-    return [d.clientName||'',d.listingTitle||'',ca?ca.addr:'',(+d.price||0),(+d.commissionPct||0)+'%',Math.round(dealCommission(d)),(+d.splitPct||0)+'%',d.payMode||'',d.status||'',d.date||'',d.note||''];
+    var vv=d.viewingId?(D.viewings||[]).filter(function(x){return x.id===d.viewingId})[0]:null;
+    return [d.clientName||'',d.listingTitle||'',ca?ca.addr:'',(+d.price||0),(+d.commissionPct||0)+'%',Math.round(dealCommission(d)),(+d.splitPct||0)+'%',d.payMode||'',d.status||'',d.date||'',vv?(vv.date||''):'',d.note||''];
   });
   var t='<table border="1"><tr>'+head.map(function(h){return '<th style="background:#1e3b33;color:#fff">'+h+'</th>'}).join('')+'</tr>'+
     rows.map(function(r){return '<tr>'+r.map(function(c){return '<td>'+esc(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';
@@ -2641,8 +2675,8 @@ function renderViewings(){
         '<td data-l="日期" class="tiny muted" style="'+(late?'color:var(--red)':'')+'">'+esc(v.date||'')+(late?' · 已过期':'')+'</td>'+
         '<td data-l="时间">'+(v.time||'—')+'</td>'+
         '<td data-l="地点" class="tiny muted">'+esc(v.place||'—')+'</td>'+
-        '<td data-l="状态">'+(v.done?'<span class="tag ok">已带看</span>':'<span class="tag '+(late?'late':'gold')+'">待带看</span>')+(v.feedback?'<div class="tiny muted">→ '+(v.feedback.next||'')+'</div>':'')+'</td>'+
-        '<td data-l="操作" class="right actions"><button class="btn sm ghost" onclick="toggleViewing(\''+v.id+'\')">'+(v.done?'撤销':'完成')+'</button><button class="btn sm ghost" onclick="editViewing(\''+v.id+'\')">编辑</button><button class="btn sm ghost" onclick="delViewing(\''+v.id+'\')">删除</button></td>'+
+        '<td data-l="状态">'+(v.done?'<span class="tag ok">已带看</span>':'<span class="tag '+(late?'late':'gold')+'">待带看</span>')+(v.feedback?'<div class="tiny muted">→ '+(v.feedback.next||'')+'</div>':'')+(v.dealId?'<div class="tiny" style="color:var(--green);margin-top:3px">↳ 已转成交</div>':'')+'</td>'+
+        '<td data-l="操作" class="right actions">'+(v.dealId?'<button class="btn sm" onclick="editDeal(\''+v.dealId+'\')">看成交</button>':'<button class="btn sm" onclick="viewingToDeal(\''+v.id+'\')">转成交</button>')+'<button class="btn sm ghost" onclick="toggleViewing(\''+v.id+'\')">'+(v.done?'撤销':'完成')+'</button><button class="btn sm ghost" onclick="editViewing(\''+v.id+'\')">编辑</button><button class="btn sm ghost" onclick="delViewing(\''+v.id+'\')">删除</button></td>'+
       '</tr>';
     }).join('')+'</tbody></table>'+
     (pages>1?'<div class="pager"><button class="btn sm ghost" '+(VIEW_PAGE>0?'onclick="VIEW_PAGE--;renderViewings()"':'disabled')+'>‹ 上一页</button><span class="muted">第 '+(VIEW_PAGE+1)+' / '+pages+' 页</span><button class="btn sm ghost" '+(VIEW_PAGE<pages-1?'onclick="VIEW_PAGE++;renderViewings()"':'disabled')+'>下一页 ›</button></div>':'')
@@ -2759,10 +2793,11 @@ function saveViewingFeedback(id){
   if(v.clientId) followModal(v.clientId);
 }
 function exportViewingsExcel(){
-  var head=['客户','房源','日期','时间','地点','状态','意向','下一步','反馈备注'];
+  var head=['客户','房源','日期','时间','地点','状态','成交','意向','下一步','反馈备注'];
   var rows=(D.viewings||[]).slice().sort(function(a,b){return (a.date||'')<(b.date||'')?-1:1}).map(function(v){
     var fb=v.feedback;
     return [v.clientName||'',v.listingTitle||'',v.date||'',v.time||'',v.place||'',v.done?'已带看':'待带看',
+      v.dealId?'已转成交':'未转',
       fb?(fb.rating==='high'?'高':fb.rating==='mid'?'中':'低'):'', fb?(fb.next||''):'', fb?(fb.note||''):''];
   });
   var t='<table border="1"><tr>'+head.map(function(h){return '<th style="background:#1e3b33;color:#fff">'+h+'</th>'}).join('')+'</tr>'+
@@ -2788,6 +2823,12 @@ function qaSave(){
   var q=$(QA_SEL+'Q'); if(q&&c) q.value=c.name+(c.phone?(' · '+c.phone):'');
   renderViewingPhone();
   toast('已创建客户「'+name+'」并选中');
+}
+/* 看房 → 成交：从带看一键转成交登记（带看记录自动关联并标记完成） */
+function viewingToDeal(id){
+  var v=(D.viewings||[]).filter(function(x){return x.id===id})[0];if(!v)return;
+  if(v.dealId){ editDeal(v.dealId); return; }
+  newDeal(id);
 }
 
 /* ==========================================================
