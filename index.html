@@ -421,16 +421,6 @@ svg.chart{display:block;width:100%;height:auto;overflow:visible}
   </button>
 </section>
 
-<!-- ============ 智能匹配 ============ -->
-<section class="view" id="v-match">
-  <div class="page-head">
-    <div><div class="eyebrow">Match</div><h2 class="page">智能匹配</h2>
-    <div class="page-sub">选一个客户，自动列出符合其需求（意向 / 预算 / 户型 / 面积 / 区域）的房源。也可在客户详情点「匹配房源」、在房源详情点「匹配客户」反向匹配。</div></div>
-  </div>
-  <div class="panel" id="matchBox"></div>
-  <div class="panel" id="matchResult" style="margin-top:16px"></div>
-</section>
-
 <!-- ============ 记账 ============ -->
 <section class="view" id="v-money">
   <div class="page-head">
@@ -691,7 +681,6 @@ svg.chart{display:block;width:100%;height:auto;overflow:visible}
     <button class="mb-drawer-item" onclick="go('deals');closeDrawer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 9v6M18 9v6"/></svg><span>成交佣金</span></button>
     <button class="mb-drawer-item" onclick="go('roya');closeDrawer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.4H22l-6 4.4 2.3 7.2L12 16.6 5.7 21l2.3-7.2-6-4.4h7.6z"/></svg><span>Roya</span></button>
     <button class="mb-drawer-item" onclick="go('tasks');closeDrawer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg><span>任务与日程</span></button>
-    <button class="mb-drawer-item" onclick="go('match');closeDrawer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a4 4 0 0 0 5.7.4l3-3a4 4 0 0 0-5.7-5.7l-1.5 1.5"/><path d="M14 11a4 4 0 0 0-5.7-.4l-3 3a4 4 0 0 0 5.7 5.7l1.5-1.5"/></svg><span>智能匹配</span></button>
     <button class="mb-drawer-item" onclick="go('source');closeDrawer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18l-7 8v6l-4 2v-8z"/></svg><span>获客来源</span></button>
     <button class="mb-drawer-item" onclick="openSync();closeDrawer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 8"/><path d="M20 4v4h-4"/><path d="M20 12a8 8 0 0 1-13.7 5.6L4 16"/><path d="M4 20v-4h4"/></svg><span>数据同步</span></button>
     <button class="mb-drawer-item" onclick="openRescue();closeDrawer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg><span>数据急救</span></button>
@@ -1031,7 +1020,7 @@ function seed(){
    导航（客户跟踪与记账理财已互换位置，开发商项目库已移除）
    ========================================================== */
 var MAIN_TABS=['today','client','listings','money'];
-var MORE_TABS=['deals','roya','tasks','match','source','tpls'];
+var MORE_TABS=['deals','roya','tasks','source','tpls'];
 var NAV=[
   {id:'today',name:'今天要处理',ic:'<circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/>'},
   {id:'tasks',name:'任务与日程',ic:'<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/>'},
@@ -1039,7 +1028,6 @@ var NAV=[
   {id:'money',name:'记账理财',ic:'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 14.5h2"/>'},
   {id:'tpls',name:'话术库',ic:'<path d="M21 11.5a8.5 8.5 0 0 1-12.2 7.7L3 21l1.8-5.8A8.5 8.5 0 1 1 21 11.5z"/><path d="M8.5 9.5c0 4 3 7 7 7 .4 0 .8-.6.5-1l-1.2-1.3c-.2-.3-.6-.3-.9-.1l-1 .7c-1-.4-1.9-1.3-2.3-2.3l.7-1c.2-.3.1-.7-.1-.9L9.6 8.9c-.4-.3-1-.1-1 .5z" fill="currentColor" stroke="none"/>'},
   {id:'listings',name:'房源库',ic:'<path d="M3 9l9-6 9 6v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 21V12h6v9"/>'},
-  {id:'match',name:'智能匹配',ic:'<path d="M10 13a4 4 0 0 0 5.7.4l3-3a4 4 0 0 0-5.7-5.7l-1.5 1.5"/><path d="M14 11a4 4 0 0 0-5.7-.4l-3 3a4 4 0 0 0 5.7 5.7l1.5-1.5"/>'},
   {id:'source',name:'获客来源',ic:'<path d="M3 4h18l-7 8v6l-4 2v-8z"/>'},
   {id:'deals',name:'成交佣金',ic:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 9v6M18 9v6"/>'},
   {id:'viewings',name:'看房预约',ic:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'},
@@ -1067,7 +1055,6 @@ function go(id){
   try{renderTabbar()}catch(e){}
   try{renderNav()}catch(e){}
   if(id==='tpls'&&typeof renderTpls==='function'){try{renderTpls()}catch(e){}}
-  if(id==='match'&&typeof renderMatch==='function'){try{renderMatch()}catch(e){}}
   if(id==='source'&&typeof renderSource==='function'){try{renderSource()}catch(e){}}
   if(id==='listings'&&typeof renderListings==='function'){try{renderListings()}catch(e){}}
   if(id==='deals'&&typeof renderDeals==='function'){try{renderDeals()}catch(e){}}
@@ -1809,19 +1796,6 @@ function openMatchForListing(id){
     '<div class="tiny muted" style="margin:6px 0 12px">'+esc(o.status)+' · AED '+(o.status==='可租'?money(o.rent):money(o.price))+(o.areaSqm?(' · '+o.areaSqm+'㎡'+(o.areaSqft?(' / '+o.areaSqft+'sqft'):'')):'')+(o.unit?(' · '+o.unit):'')+(listingTypeLabel(o)?(' · '+listingTypeLabel(o)):'')+'</div>'+body+
     '<div class="foot"><button class="btn ghost" onclick="closeMask()">关闭</button></div>';
   $('mask').classList.add('on');
-}
-function renderMatch(){
-  var opts=(D.clients||[]).map(function(c){return '<option value="'+c.id+'">'+esc(c.name)+' · '+(c.level||'')+'</option>'}).join('');
-  $('matchBox').innerHTML='<div class="form"><div><label class="f">选择客户</label><select id="matchClient"><option value="">— 请选择客户 —</option>'+opts+'</select></div>'+
-    '<div><button class="btn" onclick="runMatch()">匹配房源</button></div></div>';
-  $('matchResult').innerHTML='';
-}
-function runMatch(){
-  var id=val('matchClient');if(!id){toast('请先选择客户');return;}
-  var c=(D.clients||[]).filter(function(x){return x.id===id})[0];if(!c){toast('客户不存在');return;}
-  var ms=matchListingsForClient(c);
-  $('matchResult').innerHTML=ms.length?('<h3 class="sec" style="font-size:16px">匹配结果（'+ms.length+' 套）</h3>'+ms.map(function(m){var o=m.o;return '<div class="row" style="padding:10px 0"><div class="grow"><div style="font-size:15px">'+esc(o.project)+' <span class="tag '+(o.status==='可租'?'rent':'ok')+'">'+esc(o.status)+'</span></div><div class="tiny muted">'+esc(o.phase||'—')+' · '+esc(o.unit||'—')+(o.areaSqm?(' · '+o.areaSqm+'㎡'+(o.areaSqft?(' / '+o.areaSqft+'sqft'):'')):'')+(listingTypeLabel(o)?(' · '+listingTypeLabel(o)):'')+' · AED '+(o.status==='可租'?money(o.rent):money(o.price))+'</div><div style="margin-top:5px">'+m.reasons.map(function(r){return '<span class="tag" style="background:#eef4f1;color:#2e7d52">'+esc(r)+'</span>'}).join(' ')+'</div></div><button class="btn sm ghost" onclick="listingDetail(\''+o.id+'\')">看房源</button></div>';}).join(''))
-    :'<div class="empty">没有符合该客户需求的房源。</div>';
 }
 /* ==========================================================
    启动
