@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>迪拜房产月度数据报告 · 2026年8月</title>
+<style>
+  :root{
+    --green:#1f8a5b;--gold:#b8893b;--red:#c0392b;--ink:#1d2733;--muted:#7a8694;
+    --bg:#f4f6f8;--card:#fff;--line:#e7ebef;border:#e4e7ea;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.7;padding:0 0 60px;-webkit-text-size-adjust:100%}
+  .wrap{max-width:760px;margin:0 auto;padding:24px 18px}
+  header{background:linear-gradient(135deg,#0f3d2e,#1f8a5b);color:#fff;border-radius:16px;padding:26px 22px;margin-bottom:18px}
+  header .k{font-size:13px;opacity:.85;letter-spacing:.5px}
+  header h1{font-size:23px;margin:6px 0 4px;font-weight:700}
+  header .sub{font-size:13px;opacity:.9}
+  .note{background:#fff7e6;border:1px solid #ffe1a8;color:#8a6d2f;font-size:12.5px;
+    border-radius:10px;padding:10px 14px;margin-bottom:18px}
+  h2{font-size:17px;margin:26px 0 12px;padding-left:11px;border-left:4px solid var(--gold)}
+  .cards{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  @media(max-width:520px){.cards{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 16px}
+  .card .l{font-size:12.5px;color:var(--muted)}
+  .card .v{font-size:22px;font-weight:700;margin-top:4px;color:var(--ink)}
+  .card .v.green{color:var(--green)}.card .v.gold{color:var(--gold)}
+  .card .d{font-size:12px;margin-top:3px;color:var(--muted)}
+  .chart{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:12px}
+  .chart h3{font-size:14px;margin-bottom:8px;color:var(--ink)}
+  .chart svg{width:100%;height:auto;display:block}
+  .barlbl{font-size:11px;fill:var(--muted)}
+  .barval{font-size:11px;fill:var(--ink);font-weight:600}
+  .talk{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:4px 18px}
+  .talk li{margin:14px 0;padding-left:6px}
+  .talk b{color:var(--green)}
+  .signature{font-size:13.5px;color:var(--ink);background:#eef6f1;border-left:4px solid var(--green);
+    border-radius:10px;padding:14px 16px;margin-top:10px}
+  .src{font-size:12px;color:var(--muted);margin-top:8px}
+  /* 锁定版免责声明样式 */
+  .disclaimer{background:#f6f7f8;border:1px solid #e4e7ea;border-radius:8px;padding:16px 18px;
+    color:#8a9099;font-size:11px;line-height:1.85;margin-top:26px}
+  .disclaimer p{margin:0 0 8px}
+  footer{text-align:center;color:var(--muted);font-size:12px;margin-top:24px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="k">JUAN · 迪拜房产月度数据雷达</div>
+  <h1>迪拜房产月度数据报告</h1>
+  <div class="sub">期号：2026年8月期 ｜ 数据基准：dxbfi 2026-03 更新（含2025全年及2026初）＋ DLD 官方实时概览 2026-08-11</div>
+</header>
+
+<div class="note">⚠️ 本报告由自动化任务基于公开权威源抓取生成，数字以源数据为准。部分月度细项源站更新有滞后，已注明基准时间，绝不编造。正式决策请结合最新官方数据。</div>
+
+<h2>一、本月核心数据</h2>
+<div class="cards">
+  <div class="card"><div class="l">2025 全年成交量</div><div class="v green">270,000+ 笔</div><div class="d">创历史纪录年</div></div>
+  <div class="card"><div class="l">2025 成交总额</div><div class="v gold">AED 917 亿</div><div class="d">约合人民币 1,780 亿</div></div>
+  <div class="card"><div class="l">中位单价</div><div class="v">AED 1,770<small style="font-size:13px">/sqft</small></div><div class="d">同比 +14%</div></div>
+  <div class="card"><div class="l">公寓毛租金回报</div><div class="v green">约 7%</div><div class="d">全市加权平均</div></div>
+  <div class="card"><div class="l">黄金签证门槛</div><div class="v gold">AED 200 万</div><div class="d">购房即可申请 10 年居留</div></div>
+  <div class="card"><div class="l">2026 预计新增供应</div><div class="v">12–13.1 万套</div><div class="d">约为 2025 三倍</div></div>
+</div>
+
+<h2>二、区域单价排行（AED / 平方英尺，区间中值）</h2>
+<div class="chart">
+  <h3>热门区域每平尺中位单价对比</h3>
+  <svg viewBox="0 0 680 320" role="img" aria-label="区域单价柱状图">
+    <!-- 基线 -->
+    <line x1="120" y1="290" x2="660" y2="290" stroke="#e4e7ea"/>
+    <!-- Palm -->
+    <rect x="130" y="60" width="46" height="230" rx="4" fill="#1f8a5b"/>
+    <text x="153" y="52" text-anchor="middle" class="barval">3,500</text>
+    <text x="153" y="306" text-anchor="middle" class="barlbl">Palm</text>
+    <!-- Downtown -->
+    <rect x="200" y="120" width="46" height="170" rx="4" fill="#2a9d6e"/>
+    <text x="223" y="112" text-anchor="middle" class="barval">2,700</text>
+    <text x="223" y="306" text-anchor="middle" class="barlbl">Downtown</text>
+    <!-- Hills -->
+    <rect x="270" y="178" width="46" height="112" rx="4" fill="#3aab7c"/>
+    <text x="293" y="170" text-anchor="middle" class="barval">1,900</text>
+    <text x="293" y="306" text-anchor="middle" class="barlbl">Hills</text>
+    <!-- Marina -->
+    <rect x="340" y="186" width="46" height="104" rx="4" fill="#3aab7c"/>
+    <text x="363" y="178" text-anchor="middle" class="barval">1,850</text>
+    <text x="363" y="306" text-anchor="middle" class="barlbl">Marina</text>
+    <!-- Business Bay -->
+    <rect x="410" y="216" width="46" height="74" rx="4" fill="#8fbfa8"/>
+    <text x="433" y="208" text-anchor="middle" class="barval">1,650</text>
+    <text x="433" y="306" text-anchor="middle" class="barlbl">Bus.Bay</text>
+    <!-- JVC -->
+    <rect x="480" y="252" width="46" height="38" rx="4" fill="#b8893b"/>
+    <text x="503" y="244" text-anchor="middle" class="barval">1,050</text>
+    <text x="503" y="306" text-anchor="middle" class="barlbl">JVC</text>
+    <!-- Dubai South -->
+    <rect x="550" y="260" width="46" height="30" rx="4" fill="#b8893b"/>
+    <text x="573" y="252" text-anchor="middle" class="barval">950</text>
+    <text x="573" y="306" text-anchor="middle" class="barlbl">S.Dubai</text>
+    <!-- International City -->
+    <rect x="620" y="272" width="46" height="18" rx="4" fill="#c9a45e"/>
+    <text x="643" y="264" text-anchor="middle" class="barval">700</text>
+    <text x="643" y="306" text-anchor="middle" class="barlbl">IC</text>
+  </svg>
+  <div class="src">数据来源：dxbfi.com 区域单价区间中值（2026-03 更新）。国际城、Dubai South 等刚需区单价低但租金回报高，详见下图。</div>
+</div>
+
+<h2>三、租金毛回报对比（按区域）</h2>
+<div class="chart">
+  <h3>各区域公寓毛租金回报率</h3>
+  <svg viewBox="0 0 680 260" role="img" aria-label="租金回报柱状图">
+    <line x1="120" y1="220" x2="660" y2="220" stroke="#e4e7ea"/>
+    <!-- 7% 参考线 -->
+    <line x1="120" y1="80" x2="660" y2="80" stroke="#d9e6df" stroke-dasharray="4 4"/>
+    <text x="128" y="74" class="barlbl">7% 参考</text>
+    <!-- IC 7.5 -->
+    <rect x="140" y="78" width="50" height="142" rx="4" fill="#1f8a5b"/>
+    <text x="165" y="70" text-anchor="middle" class="barval">7.5%</text>
+    <text x="165" y="236" text-anchor="middle" class="barlbl">IC</text>
+    <!-- JVC 7.3 -->
+    <rect x="220" y="82" width="50" height="138" rx="4" fill="#249669"/>
+    <text x="245" y="74" text-anchor="middle" class="barval">7.3%</text>
+    <text x="245" y="236" text-anchor="middle" class="barlbl">JVC</text>
+    <!-- S.Dubai 6.8 -->
+    <rect x="300" y="92" width="50" height="128" rx="4" fill="#2a9d6e"/>
+    <text x="325" y="84" text-anchor="middle" class="barval">6.8%</text>
+    <text x="325" y="236" text-anchor="middle" class="barlbl">S.Dubai</text>
+    <!-- Bus.Bay 6.1 -->
+    <rect x="380" y="106" width="50" height="114" rx="4" fill="#5bb58c"/>
+    <text x="405" y="98" text-anchor="middle" class="barval">6.1%</text>
+    <text x="405" y="236" text-anchor="middle" class="barlbl">Bus.Bay</text>
+    <!-- Marina 5.9 -->
+    <rect x="460" y="110" width="50" height="110" rx="4" fill="#7cc3a1"/>
+    <text x="485" y="102" text-anchor="middle" class="barval">5.9%</text>
+    <text x="485" y="236" text-anchor="middle" class="barlbl">Marina</text>
+    <!-- Downtown 5.5 -->
+    <rect x="540" y="118" width="50" height="102" rx="4" fill="#a9d4c0"/>
+    <text x="565" y="110" text-anchor="middle" class="barval">5.5%</text>
+    <text x="565" y="236" text-anchor="middle" class="barlbl">Down.</text>
+    <!-- Palm 4.8 -->
+    <rect x="620" y="132" width="50" height="88" rx="4" fill="#c9a45e"/>
+    <text x="645" y="124" text-anchor="middle" class="barval">4.8%</text>
+    <text x="645" y="236" text-anchor="middle" class="barlbl">Palm</text>
+  </svg>
+  <div class="src">数据来源：dxbfi.com 区域租金回报（2026-03 更新）。回报与单价呈反向关系——越是刚需低价区，租金回报率越高。</div>
+</div>
+
+<h2>四、小娟视角 · 数据意味着什么</h2>
+<div class="signature">
+<p>我是小娟，在迪拜做房产已经十多年了。这一期的数据，我重点跟各位房东和买家说三件事：</p>
+<p><b>第一，市场流动性真的强。</b>2025 全年 27 万笔成交、总额 917 亿迪拉姆，是创纪录的一年。对卖房的业主来说，这意味着你的房子不缺接盘人——尤其是像 The Valley 这种 Emaar 品牌、刚需定位的社区，挂牌出去被关注的速度会更快。</p>
+<p><b>第二，单价还在涨，但供应要放量了。</b>中位单价同比涨了 14%，但 2026 年预计新增供应是 2025 的三倍（12–13 万套）。我的判断是：核心稀缺区（Palm、Downtown、Marina）依旧抗跌，而大批新交付的刚需盘会在今明两年集中入市，议价空间会慢慢出现。想卖的业主，今年是比较好的窗口。</p>
+<p><b>第三，租金回报仍是全球少见的健康水平。</b>全市公寓毛回报约 7%，JVC、国际城、Dubai South 这些区能到 6.8–7.5%。对非居民买家来说，AED 200 万购房就能拿 10 年黄金签证，相当于"资产＋身份"一起解决，这是很多市场给不了的。</p>
+</div>
+
+<h2>五、可直接发给客户的沟通素材</h2>
+<ul class="talk">
+  <li><b>给业主（The Valley 专攻）：</b>"迪拜去年 27 万笔成交创纪录，市场流动性极强。您的 The Valley 房源是 Emaar 刚需盘，现在挂牌正逢窗口期——今年新增供应放量前，是先被买家看到的好时机，我手上有精准买家渠道，方便的话聊聊您的出售意愿？"</li>
+  <li><b>给预算型买家：</b>"迪拜公寓毛租金回报普遍 5.5%–7.8%，JVC、Dubai South 这类区能到 6.8%–7.3%，在全球主流市场里很少见。200 万迪拉姆起还能一并申请 10 年黄金签证，资产身份一步到位。"</li>
+  <li><b>给区域对比需求客户：</b>"想要高回报看 JVC / Dubai South（6.8%–7.3%），想要保值稀缺看 Palm / Downtown（单价高但抗跌）。您更看重现金流还是资本增值？我按您的目标筛具体盘。"</li>
+  <li><b>给犹豫的客户：</b>"2026 年新增供应是去年的三倍，今明两年大量新盘交付，议价空间会慢慢出现。如果是自住或长线持有影响不大；如果是短线套利，节奏上可以更从容地挑。"</li>
+</ul>
+
+<div class="src">数据源：dxbfi.com/dubai-real-estate-statistics（2026-03 更新，标注数据来自 DLD / REIDIN / Knight Frank）、dubailand.gov.ae 官方实时概览与新闻（2026-08-11）。交叉校验口径以官方公布为准。</div>
+
+<section class="disclaimer">
+  <p>本文属一般性科普，不构成针对您个人的定制化投资建议，不承诺收益。</p>
+  <p>海外房产投资含汇率、税费、法律、空置与流动性等风险，数据以官方为准；税务、跨境及签证事宜，请咨询所在国与阿联酋持牌专业顾问，具体买卖请直接联系持证经纪人沟通。</p>
+  <p>另说明：黄金签证为长期居留权而非入籍，购房不等于移民或签证保障；跨境资金须遵守中国与阿联酋法规。</p>
+</section>
+
+<footer>JUAN · 迪拜房产月度数据雷达 ｜ 由自动化任务生成 ｜ 报告独立存在，可随时转发分享</footer>
+
+</div>
+</body>
+</html>
