@@ -478,7 +478,7 @@ svg.chart{display:block;width:100%;height:auto;overflow:visible}
   <div class="panel hide" id="cliForm">
     <div class="form">
       <div><label class="f">客户姓名</label><input id="cName"></div>
-      <div><label class="f">客户类型</label><select id="cType"><option value="owner">业主（房源方）</option><option value="buyer" selected>买家（客源方）</option><option value="lead">线索</option></select></div>
+      <div><label class="f">客户类型</label><select id="cType"><option value="owner">业主（房源方）</option><option value="buyer" selected>买家（客源方）</option><option value="lead">线索</option><option value="agent">中介合作</option></select></div>
       <div><label class="f">联系电话</label><input id="cPhone" inputmode="tel" placeholder="+971 / +86"></div>
       <div><label class="f">微信号</label><input id="cWx"></div>
       <div><label class="f">邮箱</label><input id="cEmail" type="email"></div>
@@ -1415,7 +1415,7 @@ var LADDER=[{d:1,l:'第 1 天 · 即时回访'},{d:3,l:'第 3 天 · 二次触�
 var CLIF='全部';
 var CLIT='客源';
 var CLI_PAGE=0, CLI_PAGE_SIZE=60;
-function ctypeLabel(t){return t==='owner'?'业主':t==='buyer'?'买家':t==='lead'?'线索':'买家';}
+function ctypeLabel(t){return t==='owner'?'业主':t==='buyer'?'买家':t==='lead'?'线索':t==='agent'?'中介合作':'买家';}
 function intentLabel(t){
   return t==='willing'?{t:'有出售意愿',c:'gold'}:
          t==='signed_exclusive'?{t:'已签独家',c:'ok'}:
@@ -1560,7 +1560,8 @@ function editClient(id){
     '<div><label class="f">客户类型</label><select id="ecType">'+
     '<option value="owner"'+((c.ctype||'buyer')==='owner'?' selected':'')+'>业主（房源方）</option>'+
     '<option value="buyer"'+((c.ctype||'buyer')==='buyer'?' selected':'')+'>买家（客源方）</option>'+
-    '<option value="lead"'+((c.ctype||'buyer')==='lead'?' selected':'')+'>线索</option></select></div>'+
+    '<option value="lead"'+((c.ctype||'buyer')==='lead'?' selected':'')+'>线索</option>'+
+    '<option value="agent"'+((c.ctype||'buyer')==='agent'?' selected':'')+'>中介合作</option></select></div>'+
     '<div><label class="f">委托状态</label><select id="ecIntent">'+
     ['unknown','willing','signed_exclusive','signed_normal','not_willing'].map(function(v){return '<option value="'+v+'"'+((c.intent||'unknown')===v?' selected':'')+'>'+intentLabel(v).t+'</option>'}).join('')+'</select></div>'+
     '<div><label class="f">获客来源</label><input id="ecSrc" list="srcList" autocomplete="off" placeholder="选或填" value="'+esc(c.src||'')+'"></div>'+
@@ -1612,10 +1613,11 @@ function renderClients(){
   $('cliChips').innerHTML=['全部','今天该跟进','已延误','待签约委托','A 高意向','B 跟进中','C 观望','D 已成交'].map(function(f){
     var n=f==='今天该跟进'?' '+due:'';
     return '<button class="chip '+(CLIF===f?'on':'')+'" onclick="CLIF=\''+f+'\';CLI_PAGE=0;renderClients()">'+f+n+'</button>';
-  }).join('')+'<span class="chip-sep"></span>'+['客源','业主','全部'].map(function(f){
+  }).join('')+'<span class="chip-sep"></span>'+['客源','业主','中介合作','全部'].map(function(f){
     var n=(D.clients||[]).filter(function(c){
       if(f==='客源')return c.ctype==='buyer'||c.ctype==='lead';
       if(f==='业主')return c.ctype==='owner';
+      if(f==='中介合作')return c.ctype==='agent';
       return true;
     }).length;
     return '<button class="chip '+(CLIT===f?'on':'')+'" onclick="CLIT=\''+f+'\';CLI_PAGE=0;renderClients()">'+f+' <b>'+n+'</b></button>';
@@ -1628,6 +1630,7 @@ function renderClients(){
       if(CLIF.length>1&&'ABCD'.indexOf(CLIF[0])>=0&&CLIF.indexOf(' ')>0&&o.c.level!==CLIF)return false;
       if(CLIT==='客源'){ if(!(o.c.ctype==='buyer'||o.c.ctype==='lead'))return false; }
       else if(CLIT==='业主'){ if(o.c.ctype!=='owner')return false; }
+      else if(CLIT==='中介合作'){ if(o.c.ctype!=='agent')return false; }
       else if(CLIT!=='全部'){ if((o.c.ctype||'buyer')!==CLIT)return false; }
       if(!q)return true;
       return (o.c.name+' '+(o.c.phone||'')+' '+(o.c.addr||'')+' '+(o.c.note||'')+' '+(o.c.wx||'')+' '+(o.c.email||'')+' '+(o.c.whatsapp||'')).toLowerCase().indexOf(q)>=0;
@@ -1647,7 +1650,7 @@ function renderClients(){
       '<td data-l="客户"><div style="font-size:15px">'+esc(c.name)+(c.demo?' <span class="tag">演示</span>':'')+'</div>'+
         (c.phone?'<div class="tiny muted tap-link" onclick="phoneActions(\''+c.id+'\')">'+esc(c.phone)+ICON_PHONE+'</div>':'<div class="tiny muted">—</div>')+'<div class="tiny muted">'+(c.birth?'生日 '+cnDate(c.birth):'—')+'</div></td>'+
           '<td data-l="房号"><span class="tiny">'+(c.addr?esc(c.addr):(unit?esc(unit):'<span class="muted">—</span>'))+'</span></td>'+
-          '<td data-l="类型"><span class="tag '+(c.ctype==='owner'?'gold':c.ctype==='buyer'?'blue':'')+'">'+ctypeLabel(c.ctype)+'</span></td>'+
+          '<td data-l="类型"><span class="tag '+(c.ctype==='owner'?'gold':c.ctype==='buyer'?'blue':c.ctype==='agent'?'violet':'')+'">'+ctypeLabel(c.ctype)+'</span></td>'+
           '<td data-l="委托"><span class="tag '+intent.c+'">'+intent.t+'</span></td>'+
           '<td data-l="意向"><span class="tag '+(c.level&&c.level[0]==='A'?'gold':c.level&&c.level[0]==='D'?'ok':'blue')+'">'+esc(c.level||'—')+'</span></td>'+
           '<td data-l="下次跟进"><div class="'+(late?'':'muted')+'" style="font-size:13.5px;'+(late?'color:var(--red)':'')+'">'+esc(x.date)+' · '+relDay(x.date)+'</div>'+
@@ -1668,7 +1671,7 @@ function renderClients(){
       return '<tr><td data-l="客户"><div style="font-size:15px">'+esc(c.name)+(c.demo?' <span class="tag">演示</span>':'')+'</div>'+
         (c.phone?'<div class="tiny muted tap-link" onclick="phoneActions(\''+c.id+'\')">'+esc(c.phone)+ICON_PHONE+'</div>':'<div class="tiny muted">—</div>')+'<div class="tiny muted">'+(c.birth?'生日 '+cnDate(c.birth):'—')+'</div></td>'+
           '<td data-l="房号"><span class="tiny">'+(c.addr?esc(c.addr):(unit?esc(unit):'<span class="muted">—</span>'))+'</span></td>'+
-        '<td data-l="类型"><span class="tag '+(c.ctype==='owner'?'gold':c.ctype==='buyer'?'blue':'')+'">'+ctypeLabel(c.ctype)+'</span></td>'+
+        '<td data-l="类型"><span class="tag '+(c.ctype==='owner'?'gold':c.ctype==='buyer'?'blue':c.ctype==='agent'?'violet':'')+'">'+ctypeLabel(c.ctype)+'</span></td>'+
         '<td data-l="委托"><span class="tag '+intentLabel(c.intent).c+'">'+intentLabel(c.intent).t+'</span></td>'+
         '<td data-l="意向"><span class="tag '+(c.level&&c.level[0]==='A'?'gold':c.level&&c.level[0]==='D'?'ok':'blue')+'">'+esc(c.level||'—')+'</span></td>'+
         '<td data-l="下次跟进"><div class="'+(late?'':'muted')+'" style="font-size:13.5px;'+(late?'color:var(--red)':'')+'">'+esc(o.date)+' · '+relDay(o.date)+'</div>'+
@@ -2486,6 +2489,14 @@ function newViewing(){
   var firstClient=(D.clients||[])[0];
   $('modal').innerHTML='<h3>新增看房预约</h3><div class="form" style="margin-top:12px">'+
     '<div><label class="f">关联客户</label><select id="vClient">'+viewingClientOptions(firstClient?firstClient.id:'')+'</select></div>'+
+    '<div style="grid-column:1/-1;margin-top:-2px;margin-bottom:8px"><button type="button" class="btn sm ghost" onclick="qaOpen(\'vClient\')">➕ 新建客户</button></div>'+
+    '<div id="qaWrap" style="display:none;grid-column:1/-1;margin-bottom:8px;padding:10px 12px;background:#f7faf8;border:1px solid var(--line);border-radius:8px">'+
+      '<div class="tiny muted" style="margin-bottom:6px">快速新建客户（自动建进客户库并选中）</div>'+
+      '<div><label class="f">姓名 *</label><input id="qaName" placeholder="必填"></div>'+
+      '<div><label class="f">电话</label><input id="qaPhone" placeholder="选填"></div>'+
+      '<div><label class="f">类型</label><select id="qaType"><option value="buyer">客源（买家）</option><option value="lead">线索</option><option value="agent">中介合作</option></select></div>'+
+      '<div class="foot" style="margin-top:8px"><button type="button" class="btn sm ghost" onclick="qaClose()">取消</button><button type="button" class="btn sm" onclick="qaSave()">创建并选中</button></div>'+
+    '</div>'+
     '<div><label class="f">关联房源</label><select id="vListing"><option value="">— 无（纯带看意向）—</option>'+dealListingOptions('')+'</select></div>'+
     '<div><label class="f">日期</label><input type="date" id="vDate"></div>'+
     '<div><label class="f">时间</label><input type="time" id="vTime"></div>'+
@@ -2510,6 +2521,14 @@ function editViewing(id){
   var v=(D.viewings||[]).filter(function(x){return x.id===id})[0];if(!v)return;
   $('modal').innerHTML='<h3>编辑看房</h3><div class="form" style="margin-top:12px">'+
     '<div><label class="f">关联客户</label><select id="evClient">'+viewingClientOptions(v.clientId)+'</select></div>'+
+    '<div style="grid-column:1/-1;margin-top:-2px;margin-bottom:8px"><button type="button" class="btn sm ghost" onclick="qaOpen(\'evClient\')">➕ 新建客户</button></div>'+
+    '<div id="qaWrap" style="display:none;grid-column:1/-1;margin-bottom:8px;padding:10px 12px;background:#f7faf8;border:1px solid var(--line);border-radius:8px">'+
+      '<div class="tiny muted" style="margin-bottom:6px">快速新建客户（自动建进客户库并选中）</div>'+
+      '<div><label class="f">姓名 *</label><input id="qaName" placeholder="必填"></div>'+
+      '<div><label class="f">电话</label><input id="qaPhone" placeholder="选填"></div>'+
+      '<div><label class="f">类型</label><select id="qaType"><option value="buyer">客源（买家）</option><option value="lead">线索</option><option value="agent">中介合作</option></select></div>'+
+      '<div class="foot" style="margin-top:8px"><button type="button" class="btn sm ghost" onclick="qaClose()">取消</button><button type="button" class="btn sm" onclick="qaSave()">创建并选中</button></div>'+
+    '</div>'+
     '<div><label class="f">关联房源</label><select id="evListing"><option value="">— 纯带看意向 —</option>'+dealListingOptions(v.listingId||'')+'</select></div>'+
     '<div><label class="f">日期</label><input type="date" id="evDate" value="'+esc(v.date||'')+'"></div>'+
     '<div><label class="f">时间</label><input type="time" id="evTime" value="'+esc(v.time||'')+'"></div>'+
@@ -2547,6 +2566,25 @@ function exportViewingsExcel(){
   var html='<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body>'+t+'</body></html>';
   download('Juan的工作台_看房预约_'+toDay()+'.xls','\ufeff'+html,'application/vnd.ms-excel;charset=utf-8');
   toast('Excel 已导出');
+}
+
+/* 看房预约内嵌快速新建客户（无需跳出表单） */
+var QA_SEL='vClient';
+function quickNewClient(name,phone,ctype){
+  var id=uid();
+  D.clients.unshift({id:id,name:name,phone:phone||'',ctype:ctype||'buyer',level:'未成交',src:'',first:toDay(),note:'',stage:0,logs:[],createdAt:toDay(),intent:'unknown',needStatus:'',budgetMin:0,budgetMax:0,needType:'',needArea:0,needRegion:'',addr:'',homeAddr:'',birth:'',wx:'',email:'',whatsapp:''});
+  counted();save();return id;
+}
+function qaOpen(sel){QA_SEL=sel;$('qaWrap').style.display='block';setTimeout(function(){var e=$('qaName');if(e)e.focus();},30);}
+function qaClose(){$('qaWrap').style.display='none';}
+function qaSave(){
+  var name=val('qaName');if(!name){toast('请填写姓名');return;}
+  var id=quickNewClient(name,val('qaPhone'),val('qaType'));
+  var sel=$(QA_SEL);
+  if(sel){sel.innerHTML=dealClientOptions(id);setv(QA_SEL,id);}
+  setv('qaName','');setv('qaPhone','');setv('qaType','buyer');
+  $('qaWrap').style.display='none';
+  toast('已创建客户「'+name+'」并选中');
 }
 
 /* ==========================================================
