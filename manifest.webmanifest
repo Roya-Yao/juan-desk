@@ -1,0 +1,26 @@
+{
+  "name": "Juan的工作台",
+  "short_name": "Juan台",
+  "description": "迪拜房产顾问个人工作台：任务日程、客户跟进、记账理财、DLD 月度、宝宝提醒",
+  "lang": "zh-CN",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1e3b33",
+  "theme_color": "#1e3b33",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
