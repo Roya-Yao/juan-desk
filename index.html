@@ -483,7 +483,7 @@ svg.chart{display:block;width:100%;height:auto;overflow:visible}
       <div><label class="f">微信号</label><input id="cWx"></div>
       <div><label class="f">邮箱</label><input id="cEmail" type="email"></div>
       <div><label class="f">WhatsApp</label><input id="cWhatsapp" inputmode="tel" placeholder="+971 / +86"></div>
-      <div class="wide"><label class="f">居住地址</label><input id="cAddr" placeholder="例：深圳南山 / Dubai Marina"></div>
+      <div class="wide"><label class="f">房源地址 / 房号</label><input id="cAddr" placeholder="例：The Valley · Villa 12 / 深圳南山"></div>
       <div><label class="f">生日</label><input type="date" id="cBirth"></div>
       <div><label class="f">意向等级</label><select id="cLevel"><option>A 高意向</option><option selected>B 跟进中</option><option>C 观望</option><option>D 已成交</option></select></div>
       <div><label class="f">获客来源</label><input id="cSrc" list="srcList" placeholder="选或填，如 Property Finder / 小红书" autocomplete="off"><datalist id="srcList"><option value="Property Finder"></option><option value="Bayut"></option><option value="小红书"></option><option value="视频号"></option><option value="Instagram"></option><option value="LinkedIn"></option></datalist></div>
@@ -1458,7 +1458,7 @@ function dueOwners(){
 }
 function addClient(){
   var n=val('cName');if(!n){toast('请填写客户姓名');return}
-  D.clients.unshift({id:uid(),name:n,phone:val('cPhone'),wx:val('cWx'),email:val('cEmail'),whatsapp:val('cWhatsapp'),addr:val('cAddr'),birth:val('cBirth'),
+  D.clients.unshift({id:uid(),name:n,phone:val('cPhone'),wx:val('cWx'),email:val('cEmail'),whatsapp:val('cWhatsapp'),addr:val('cAddr'),homeAddr:val('cHomeAddr'),birth:val('cBirth'),
     level:val('cLevel'),src:val('cSrc'),first:val('cFirst')||toDay(),note:val('cNote'),stage:0,logs:[],createdAt:toDay(),ctype:val('cType')||'buyer',intent:'unknown',
     needStatus:val('cNeedStatus')||'不限',budgetMin:parseFloat(val('cBudgetMin'))||0,budgetMax:parseFloat(val('cBudgetMax'))||0,
     needType:val('cNeedType')||'',needArea:parseFloat(val('cNeedArea'))||0,needRegion:val('cNeedRegion')||''});
@@ -1509,8 +1509,7 @@ function clientDetail(id){
   if(c.needType)needs.push('户型 '+c.needType);
   if(c.needArea)needs.push('面积≥'+c.needArea+'㎡');
   if(c.needRegion)needs.push('区域 '+c.needRegion);
-  var rows=[['客户类型',ctypeLabel(c.ctype)],['委托状态',intentLabel(c.intent).t],['电话',c.phone],['微信号',c.wx],['邮箱',c.email],['WhatsApp',c.whatsapp],['居住地址',c.addr],['生日',c.birth?c.birth+'（'+cnDate(c.birth)+'）':''],
-    ['意向等级',c.level],['来源',c.src],['首次联系',c.first],['跟进节点',n.label+' · '+n.date+(late?'（已延误）':'')]];
+  var rows=[['客户类型',ctypeLabel(c.ctype)],['委托状态',intentLabel(c.intent).t],['电话',c.phone],['微信号',c.wx],['邮箱',c.email],['WhatsApp',c.whatsapp],['房源地址/房号',c.addr],['实际居住地址',c.homeAddr],['生日',c.birth?c.birth+'（'+cnDate(c.birth)+'）':''],['意向等级',c.level],['来源',c.src],['首次联系',c.first],['跟进节点',n.label+' · '+n.date+(late?'（已延误）':'')]];
   $('modal').innerHTML='<h3>'+esc(c.name)+'</h3>'+
     '<div style="margin-top:10px">'+rows.map(function(r){var v=r[1];if(!v)return '';var tap=(r[0]==='电话'||r[0]==='WhatsApp')?' onclick="phoneActions(\''+c.id+'\')" style="cursor:pointer"':'';var col=tap?'color:var(--blue);text-decoration:underline;text-underline-offset:2px':'';return '<div class="row" style="padding:8px 0"><div class="grow tiny muted">'+esc(r[0])+'</div><div'+tap+' style="text-align:right;font-size:14px;'+col+'">'+esc(v)+(tap?ICON_PHONE:'')+'</div></div>';}).join('')+'</div>'+
     (needs.length?'<div style="margin-top:12px;padding:12px 14px;background:#eef4f1;border-radius:6px;font-size:13.5px;line-height:1.75"><div class="tiny muted" style="margin-bottom:4px">购房 / 租房需求</div>'+needs.join(' · ')+'</div>':'')+
@@ -1540,7 +1539,8 @@ function editClient(id){
     '<div><label class="f">邮箱</label><input id="ecEmail" value="'+esc(c.email||'')+'"></div>'+
     '<div><label class="f">WhatsApp</label><input id="ecWhatsapp" value="'+esc(c.whatsapp||'')+'"></div>'+
     '<div><label class="f">生日</label><input type="date" id="ecBirth" value="'+esc(c.birth||'')+'"></div>'+
-    '<div class="wide"><label class="f">居住地址</label><input id="ecAddr" value="'+esc(c.addr||'')+'"></div>'+
+    '<div class="wide"><label class="f">房源地址 / 房号</label><input id="ecAddr" value="'+esc(c.addr||'')+'"></div>'+
+    '<div class="wide"><label class="f">客人实际居住地址（选填·仅详情显示）</label><input id="ecHomeAddr" value="'+esc(c.homeAddr||'')+'" placeholder="客户本人现住地址，如：深圳南山"></div>'+
     '<div><label class="f">首次联系</label><input type="date" id="ecFirst" value="'+esc(c.first||'')+'"></div>'+
     '<div class="wide"><label class="f" style="color:var(--blue)">— 购房 / 租房需求 —</label></div>'+
     '<div><label class="f">意向</label><select id="ecNeedStatus"><option '+(c.needStatus==='不限'?'selected':'')+'>不限</option><option '+(c.needStatus==='可售'?'selected':'')+'>可售</option><option '+(c.needStatus==='可租'?'selected':'')+'>可租</option></select></div>'+
@@ -1558,7 +1558,7 @@ function editClient(id){
 function saveClient(id){
   var c=(D.clients||[]).filter(function(x){return x.id===id})[0];if(!c)return;
   c.name=val('ecName')||c.name;c.phone=val('ecPhone');c.wx=val('ecWx');c.email=val('ecEmail');c.whatsapp=val('ecWhatsapp');c.birth=val('ecBirth');
-  c.addr=val('ecAddr');c.first=val('ecFirst')||c.first;c.stage=parseInt(val('ecStage'),10)||0;c.note=val('ecNote');c.ctype=val('ecType')||c.ctype||'buyer';c.intent=val('ecIntent')||c.intent||'unknown';c.src=val('ecSrc')||c.src||'';
+  c.addr=val('ecAddr');c.homeAddr=val('ecHomeAddr');c.first=val('ecFirst')||c.first;c.stage=parseInt(val('ecStage'),10)||0;c.note=val('ecNote');c.ctype=val('ecType')||c.ctype||'buyer';c.intent=val('ecIntent')||c.intent||'unknown';c.src=val('ecSrc')||c.src||'';
   c.needStatus=val('ecNeedStatus')||'不限';c.budgetMin=parseFloat(val('ecBudgetMin'))||0;c.budgetMax=parseFloat(val('ecBudgetMax'))||0;c.needType=val('ecNeedType')||'';c.needArea=parseFloat(val('ecNeedArea'))||0;c.needRegion=val('ecNeedRegion')||'';
   save();closeMask();renderAll();toast('已保存');
 }
@@ -1614,9 +1614,9 @@ function renderClients(){
         var unit=ownerUnit(c);
         var intent=intentLabel(c.intent);
         return '<tr'+(late?' style="border-color:#f0c9c4;background:#fff8f7"':'')+'>'+
-          '<td data-l="客户"><div style="font-size:15px">'+esc(c.name)+(c.demo?' <span class="tag">演示</span>':'')+'</div>'+
-            (c.phone?'<div class="tiny muted tap-link" onclick="phoneActions(\''+c.id+'\')">'+esc(c.phone)+ICON_PHONE+'</div>':'<div class="tiny muted">—</div>')+'<div class="tiny muted">'+esc(c.addr||'—')+(c.birth?' · 生日 '+cnDate(c.birth):'')+'</div></td>'+
-          '<td data-l="房号"><span class="tiny">'+(unit?esc(unit):'<span class="muted">—</span>')+'</span></td>'+
+      '<td data-l="客户"><div style="font-size:15px">'+esc(c.name)+(c.demo?' <span class="tag">演示</span>':'')+'</div>'+
+        (c.phone?'<div class="tiny muted tap-link" onclick="phoneActions(\''+c.id+'\')">'+esc(c.phone)+ICON_PHONE+'</div>':'<div class="tiny muted">—</div>')+'<div class="tiny muted">'+(c.birth?'生日 '+cnDate(c.birth):'—')+'</div></td>'+
+          '<td data-l="房号"><span class="tiny">'+(c.addr?esc(c.addr):(unit?esc(unit):'<span class="muted">—</span>'))+'</span></td>'+
           '<td data-l="类型"><span class="tag '+(c.ctype==='owner'?'gold':c.ctype==='buyer'?'blue':'')+'">'+ctypeLabel(c.ctype)+'</span></td>'+
           '<td data-l="委托"><span class="tag '+intent.c+'">'+intent.t+'</span></td>'+
           '<td data-l="意向"><span class="tag '+(c.level&&c.level[0]==='A'?'gold':c.level&&c.level[0]==='D'?'ok':'blue')+'">'+esc(c.level||'—')+'</span></td>'+
@@ -1636,7 +1636,7 @@ function renderClients(){
     pageItems.map(function(o){
       var c=o.c, late=o.d<0;
       return '<tr><td data-l="客户"><div style="font-size:15px">'+esc(c.name)+(c.demo?' <span class="tag">演示</span>':'')+'</div>'+
-        (c.phone?'<div class="tiny muted tap-link" onclick="phoneActions(\''+c.id+'\')">'+esc(c.phone)+ICON_PHONE+'</div>':'<div class="tiny muted">—</div>')+'<div class="tiny muted">'+esc(c.addr||'—')+(c.birth?' · 生日 '+cnDate(c.birth):'')+'</div></td>'+
+        (c.phone?'<div class="tiny muted tap-link" onclick="phoneActions(\''+c.id+'\')">'+esc(c.phone)+ICON_PHONE+'</div>':'<div class="tiny muted">—</div>')+'<div class="tiny muted">🏠 '+(c.addr?esc(c.addr):'房号—')+(c.birth?' · 生日 '+cnDate(c.birth):'')+'</div></td>'+
         '<td data-l="类型"><span class="tag '+(c.ctype==='owner'?'gold':c.ctype==='buyer'?'blue':'')+'">'+ctypeLabel(c.ctype)+'</span></td>'+
         '<td data-l="委托"><span class="tag '+intentLabel(c.intent).c+'">'+intentLabel(c.intent).t+'</span></td>'+
         '<td data-l="意向"><span class="tag '+(c.level&&c.level[0]==='A'?'gold':c.level&&c.level[0]==='D'?'ok':'blue')+'">'+esc(c.level||'—')+'</span></td>'+
@@ -1656,8 +1656,8 @@ function renderClients(){
 function exportClientsExcel(){
   var all=D.clients||[];
   if(!all.length){toast('还没有客户可导出');return;}
-  var head=['姓名','客户类型','委托状态','电话','微信','邮箱','WhatsApp','地址','生日','意向等级','来源','首次联系','跟进次数','意向(售/租)','预算下限','预算上限','户型需求','面积下限','区域偏好','备注'];
-  var rows=all.map(function(c){return [c.name||'',ctypeLabel(c.ctype),intentLabel(c.intent).t,c.phone||'',c.wx||'',c.email||'',c.whatsapp||'',c.addr||'',c.birth||'',c.level||'',c.src||'',c.first||'',(c.logs||[]).length,c.needStatus||'',c.budgetMin||0,c.budgetMax||0,c.needType||'',c.needArea||0,c.needRegion||'',c.note||'']});
+  var head=['姓名','客户类型','委托状态','电话','微信','邮箱','WhatsApp','房源地址/房号','生日','实际居住地址','意向等级','来源','首次联系','跟进次数','意向(售/租)','预算下限','预算上限','户型需求','面积下限','区域偏好','备注'];
+  var rows=all.map(function(c){return [c.name||'',ctypeLabel(c.ctype),intentLabel(c.intent).t,c.phone||'',c.wx||'',c.email||'',c.whatsapp||'',c.addr||'',c.birth||'',c.homeAddr||'',c.level||'',c.src||'',c.first||'',(c.logs||[]).length,c.needStatus||'',c.budgetMin||0,c.budgetMax||0,c.needType||'',c.needArea||0,c.needRegion||'',c.note||'']});
   var t='<table border="1"><tr>'+head.map(function(h){return '<th style="background:#1e3b33;color:#fff">'+h+'</th>'}).join('')+'</tr>'+
     rows.map(function(r){return '<tr>'+r.map(function(c){return '<td>'+esc(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';
   var html='<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body>'+t+'</body></html>';
