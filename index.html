@@ -2583,9 +2583,22 @@ function _fetchTimeout(url,opts,ms){
 }
 /* 保存前先验证 Token 能读 gist 列表；401/403 直接拦停，避免后续生成假恢复码 */
 async function validateToken(){
-  var r=await _fetchTimeout('https://api.github.com/gists',{method:'GET',headers:_ghHeaders()},6000);
-  if(r.status===401||r.status===403)throw new Error('Token 无效或权限不足：请重新生成含 gist 读写权限的 GitHub Token');
-  if(!r.ok)throw new Error('读取 Gist 列表失败 '+r.status);
+  /* 真正测试“能否创建 gist”：建一个临时探测 gist 再删除。
+     只含 repo 权限的 Token 能 GET 返回 200，但 POST 创建会 404，必须测创建才能区分。 */
+  var probe='_probe_'+Date.now()+'.txt';
+  try{
+    var r=await _fetchTimeout('https://api.github.com/gists',{method:'POST',headers:_ghHeaders(),body:JSON.stringify({public:false,files:{[probe]:{content:'probe'}}})},8000);
+    if(r.ok){
+      try{var j=await r.json();await _fetchTimeout('https://api.github.com/gists/'+j.id,{method:'DELETE',headers:_ghHeaders()},8000);}catch(_){}
+      return;
+    }
+    if(r.status===401||r.status===403)throw new Error('Token 无效或权限不足：请在 GitHub 重新生成「Tokens (classic)」并勾选 gist（Read and Write）');
+    if(r.status===404)throw new Error('Token 缺少 gist 权限：当前 Token 只能读不能建。请重新生成勾选 gist（Read and Write）的 classic Token');
+    return; /* 其他状态（限流/网络）放行，保存时再真实尝试 */
+  }catch(e){
+    if(/401|403|404|权限不足|gist 权限|无效或权限/i.test((e&&e.message)||''))throw e;
+    return; /* 网络错误放行，避免误拦 */
+  }
 }
 async function gistGet(){
   if(!_syncCfg.gistId)return null;
@@ -2612,7 +2625,7 @@ async function gistGetAll(){
 async function gistCreate(content,cfg){
   var files={}; files[_gistFile()]={content:content}; if(cfg)files[_gistCfgFile()]={content:cfg};
   var r=await _fetchTimeout('https://api.github.com/gists',{method:'POST',headers:_ghHeaders(),body:JSON.stringify({description:'dxb-desk-sync',public:false,files:files})},6000);
-  if(!r.ok)throw new Error('创建云端失败 '+r.status+(r.status===401?'（Token 无效或权限不足）':''));
+  if(!r.ok){ if(r.status===404)throw new Error('Token 缺少 gist 权限：请在 GitHub 重新生成勾选 gist（Read and Write）的 classic Token'); throw new Error('创建云端失败 '+r.status+(r.status===401?'（Token 无效或权限不足）':'')); }
   var j=await r.json();_syncCfg.gistId=j.id;persistSyncCfg(_syncCfg);return j.id;
 }
 async function gistUpdate(content,cfg){
