@@ -2590,14 +2590,41 @@ async function gistGet(){
   var f=j.files&&j.files[_gistFile()];
   return f?f.content:null;
 }
-async function gistCreate(content){
-  var r=await _fetchTimeout('https://api.github.com/gists',{method:'POST',headers:_ghHeaders(),body:JSON.stringify({description:'dxb-desk-sync',public:false,files:{[_gistFile()]:{content:content}}})},6000);
+/* 配置文件独立存储：用密码锁住的主密钥（mkWrap），用于跨设备自动对齐 */
+function _gistCfgFile(){return (_syncCfg.wsid||'default')+'_cfg.txt';}
+async function gistGetAll(){
+  if(!_syncCfg.gistId)return {data:null,cfg:null};
+  var r=await _fetchTimeout('https://api.github.com/gists/'+_syncCfg.gistId,{headers:_ghHeaders()},6000);
+  if(r.status===404)return {data:null,cfg:null};
+  if(!r.ok)throw new Error('读取云端失败 '+r.status);
+  var j=await r.json();
+  var f=j.files&&j.files[_gistFile()];
+  var c=j.files&&j.files[_gistCfgFile()];
+  var cfgObj=null; if(c&&c.content){try{cfgObj=JSON.parse(c.content);}catch(_){cfgObj=null;}}
+  return {data:f?f.content:null,cfg:cfgObj};
+}
+async function gistCreate(content,cfg){
+  var files={}; files[_gistFile()]={content:content}; if(cfg)files[_gistCfgFile()]={content:cfg};
+  var r=await _fetchTimeout('https://api.github.com/gists',{method:'POST',headers:_ghHeaders(),body:JSON.stringify({description:'dxb-desk-sync',public:false,files:files})},6000);
   if(!r.ok)throw new Error('创建云端失败 '+r.status+(r.status===401?'（Token 无效或权限不足）':''));
   var j=await r.json();_syncCfg.gistId=j.id;persistSyncCfg(_syncCfg);return j.id;
 }
-async function gistUpdate(content){
-  var r=await _fetchTimeout('https://api.github.com/gists/'+_syncCfg.gistId,{method:'PATCH',headers:_ghHeaders(),body:JSON.stringify({files:{[_gistFile()]:{content:content}}})},6000);
+async function gistUpdate(content,cfg){
+  var files={}; files[_gistFile()]={content:content}; if(cfg)files[_gistCfgFile()]={content:cfg};
+  var r=await _fetchTimeout('https://api.github.com/gists/'+_syncCfg.gistId,{method:'PATCH',headers:_ghHeaders(),body:JSON.stringify({files:files})},6000);
   if(!r.ok)throw new Error('更新云端失败 '+r.status);
+}
+/* 跨设备发现：本地没有 gistId 时，按工作区ID的文件名在用户的 gist 列表里找已有 gist */
+async function discoverGistId(wsid){
+  var fname=(wsid||'default')+'.txt';
+  var r=await _fetchTimeout('https://api.github.com/gists?per_page=100',{headers:_ghHeaders()},9000);
+  if(!r.ok)return null;
+  var list=await r.json();
+  for(var i=0;i<list.length;i++){
+    var files=(list[i]&&list[i].files)||{};
+    if(files[fname])return list[i].id;
+  }
+  return null;
 }
 
 /* ---------- 合并（按 id 并集，冲突以云端为准；不丢本地独有记录） ---------- */
@@ -2619,28 +2646,40 @@ function mergeByUnion(a,b){
   return out;
 }
 
-/* ---------- 主流程：拉取并合并 → 上传 ---------- */
+/* ---------- 主密钥对齐：本地 mkWrap → 云端 cfg → 仍不行则按场景报错 ---------- */
+async function ensureMK(pass){
+  if(_mk)return _mk;
+  if(_syncCfg.mkWrap&&pass){try{_mk=await unwrapMK(pass,_syncCfg.mkWrap);if(_mk)return _mk;}catch(e){_mk=null;}}
+  /* 本地没有 gistId：按工作区ID自动发现已有 gist（跨设备首次接入） */
+  if(!_syncCfg.gistId){
+    try{ var gid=await discoverGistId(_syncCfg.wsid); if(gid){_syncCfg.gistId=gid;persistSyncCfg(_syncCfg);} }catch(e){}
+  }
+  if(_syncCfg.gistId){
+    try{
+      var all=await gistGetAll();
+      if(all&&all.cfg&&all.cfg.mkWrap&&pass){try{_mk=await unwrapMK(pass,all.cfg.mkWrap);if(_mk)return _mk;}catch(e){_mk=null;}}
+    }catch(e){ _mk=null; if(/读取云端失败|网络|fetch|timeout|超时|offline|abort/i.test((e&&e.message)||'')){ throw e; } }
+    throw new Error('云端数据由其他密码加密：请用「恢复码找回」解锁，或点「重置云端」用当前密码重传');
+  }
+  _mk=genMK();return _mk;
+}
+/* ---------- 主流程：拉取并合并 → 上传（数据 + 配置双文件） ---------- */
 async function syncNow(silent){
   if(!syncEnabled())return;
   if(!syncCryptoOK()){if(!silent)toast('当前环境不支持加密，请用 https 链接打开');return;}
   if(_syncBusy)return;_syncBusy=true;
   try{
-    if(!_mk){
-      if(!_syncCfg.pass||!_syncCfg.mkWrap){if(!silent)toast('请先在同步设置中保存密码');throw new Error('no mk');}
-      try{_mk=await unwrapMK(_syncCfg.pass,_syncCfg.mkWrap);}catch(e){if(!silent)toast('同步密码错误，无法解锁云端数据');throw e;}
-    }
-    var remoteRaw=null;
-    try{remoteRaw=await gistGet();}catch(e){if(!silent)toast('同步：读取云端出错');throw e;}
+    var mk=await ensureMK(_syncCfg.pass);_mk=mk;
+    var all=await gistGetAll();
+    var remoteRaw=all.data;
     if(remoteRaw){
       var remoteObj=JSON.parse(await decData(remoteRaw,_mk));
       var merged=mergeByUnion(D,remoteObj);
-      if(JSON.stringify(merged)!==JSON.stringify(D)){
-        D=merged;try{localStorage.setItem(KEY,JSON.stringify(D));}catch(e){}
-        if(typeof renderAll==='function')renderAll();
-      }
+      if(JSON.stringify(merged)!==JSON.stringify(D)){D=merged;save();if(typeof renderAll==='function')renderAll();}
     }
     var cipher=await encData(JSON.stringify(D),_mk);
-    if(_syncCfg.gistId){await gistUpdate(cipher);}else{await gistCreate(cipher);}
+    var cfgJson=JSON.stringify({mkWrap:_syncCfg.mkWrap});
+    if(_syncCfg.gistId){await gistUpdate(cipher,cfgJson);}else{await gistCreate(cipher,cfgJson);}
     _syncCfg.last=Date.now();persistSyncCfg(_syncCfg);
     if(!silent)toast('已同步到云端 ✓');
     renderSyncStatus();
@@ -2687,7 +2726,7 @@ function openSync(){
     '<div class="muted tiny" style="margin:6px 0 12px">Token 生成：github.com → 右上角头像 → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate → 只勾 <b>gist</b> 读写权限。详细步骤见对话。</div>'+
     '<div class="muted tiny" style="margin:2px 0 12px">💡 保存后会生成一串<b>恢复码</b>。忘记同步密码时，输入恢复码即可解锁并恢复全部数据（可存邮箱/备忘录），无需邮箱或短信验证。</div>'+
     '<div id="syStatus" class="muted tiny" style="margin:2px 0 12px"></div>'+
-    '<div class="foot"><button class="btn ghost" onclick="closeMask()">关闭</button><button class="btn ghost" onclick="testGhConn()">测试连接</button>'+(hasCode?'<button class="btn ghost" onclick="recoverByCode()">忘记密码？用恢复码找回</button>':'')+'<button class="btn ghost" onclick="resetCloudSync()">重置云端（忘记旧密码）</button><button class="btn" onclick="saveSyncCfg()">保存并同步</button></div>';
+    '<div class="foot"><button class="btn ghost" onclick="closeMask()">关闭</button><button class="btn ghost" onclick="testGhConn()">测试连接</button>'+(hasCode?'<button class="btn ghost" onclick="viewRecCode()">查看恢复码</button><button class="btn ghost" onclick="recoverByCode()">忘记密码？用恢复码找回</button>':'')+'<button class="btn ghost" onclick="resetCloudSync()">重置云端（忘记旧密码）</button><button class="btn" onclick="saveSyncCfg()">保存并同步</button></div>';
   $('modal').innerHTML=h;$('mask').classList.add('on');renderSyncStatus();
 }
 function renderSyncStatus(){
@@ -2773,17 +2812,11 @@ function saveSyncCfg(){
   (function(){
     (async function(){
       try{
-        if(!_mk){
-          if(_syncCfg.mkWrap&&_syncCfg.pass){try{_mk=await unwrapMK(_syncCfg.pass,_syncCfg.mkWrap);}catch(e){_mk=null;}}
-        }
-        if(_syncCfg.gistId && !_mk){
-          toast('云端已有其他密码加密的数据：请先点「重置云端」用新密码重传，或用「恢复码找回」解锁');
-          return;
-        }
-        if(!_mk){_mk=genMK();}
-        _syncCfg.mkWrap=await wrapMK(pass,_mk);
-        var rec=mkToCode(_mk);
-        _syncCfg={enabled:on,wsid:wsid,pass:pass,token:token,gistId:_syncCfg.gistId||'',last:_syncCfg.last||0,mkWrap:_syncCfg.mkWrap};
+        _syncCfg={enabled:on,wsid:wsid,pass:pass,token:token,gistId:_syncCfg.gistId||'',last:_syncCfg.last||0,mkWrap:_syncCfg.mkWrap||null};
+        persistSyncCfg(_syncCfg);
+        var mk=await ensureMK(pass);_mk=mk;
+        var rec=mkToCode(mk);
+        _syncCfg.mkWrap=await wrapMK(pass,mk);
         persistSyncCfg(_syncCfg);
         closeMask();
         showRecCode(rec,on);
@@ -2799,6 +2832,11 @@ function showRecCode(rec,on){
     '<div class="muted tiny" style="margin:8px 0 12px">👆 长按复制，或记下这串字符。'+(on?'<b style="color:var(--green)">同步已开始，云端立刻上传当前数据。</b>':'')+'</div>'+
     '<div class="foot"><button class="btn ghost" onclick="closeMask()">稍后再说</button><button class="btn" onclick="closeMask()">我已抄存</button></div>';
   $('modal').innerHTML=h;$('mask').classList.add('on');
+}
+async function viewRecCode(){
+  if(!_mk){ if(_syncCfg.mkWrap&&_syncCfg.pass){try{_mk=await unwrapMK(_syncCfg.pass,_syncCfg.mkWrap);}catch(e){_mk=null;}} }
+  if(!_mk){toast('请先成功同步一次，主密钥才可用');return;}
+  showRecCode(mkToCode(_mk),false);
 }
 function recoverByCode(){
   var h='<h3>用恢复码找回</h3>'+
