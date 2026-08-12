@@ -2581,6 +2581,12 @@ function _fetchTimeout(url,opts,ms){
     fetch(url,opts).then(function(r){clearTimeout(timer);resolve(r);}).catch(function(e){clearTimeout(timer);if(!e||!e.message){reject(new Error('网络请求失败（无法连接 GitHub）'));}else{reject(e);}});
   });
 }
+/* 保存前先验证 Token 能读 gist 列表；401/403 直接拦停，避免后续生成假恢复码 */
+async function validateToken(){
+  var r=await _fetchTimeout('https://api.github.com/gists',{method:'GET',headers:_ghHeaders()},6000);
+  if(r.status===401||r.status===403)throw new Error('Token 无效或权限不足：请重新生成含 gist 读写权限的 GitHub Token');
+  if(!r.ok)throw new Error('读取 Gist 列表失败 '+r.status);
+}
 async function gistGet(){
   if(!_syncCfg.gistId)return null;
   var r=await _fetchTimeout('https://api.github.com/gists/'+_syncCfg.gistId,{headers:_ghHeaders()},6000);
@@ -2618,7 +2624,8 @@ async function gistUpdate(content,cfg){
 async function discoverGistId(wsid){
   var fname=(wsid||'default')+'.txt';
   var r=await _fetchTimeout('https://api.github.com/gists?per_page=100',{headers:_ghHeaders()},9000);
-  if(!r.ok)return null;
+  if(r.status===401||r.status===403)throw new Error('Token 无效或权限不足：请重新生成含 gist 读写权限的 GitHub Token');
+  if(!r.ok)throw new Error('读取 Gist 列表失败 '+r.status);
   var list=await r.json();
   for(var i=0;i<list.length;i++){
     var files=(list[i]&&list[i].files)||{};
@@ -2652,7 +2659,12 @@ async function ensureMK(pass){
   if(_syncCfg.mkWrap&&pass){try{_mk=await unwrapMK(pass,_syncCfg.mkWrap);if(_mk)return _mk;}catch(e){_mk=null;}}
   /* 本地没有 gistId：按工作区ID自动发现已有 gist（跨设备首次接入） */
   if(!_syncCfg.gistId){
-    try{ var gid=await discoverGistId(_syncCfg.wsid); if(gid){_syncCfg.gistId=gid;persistSyncCfg(_syncCfg);} }catch(e){}
+    try{ var gid=await discoverGistId(_syncCfg.wsid); if(gid){_syncCfg.gistId=gid;persistSyncCfg(_syncCfg);} }
+    catch(e){
+      /* 权限类错误必须抛出来，不能假装无云端然后生成新密钥 */
+      if(/401|403|Unauthorized|forbidden|Token 无效|权限不足/i.test((e&&e.message)||''))throw e;
+      /* 纯网络错误：降级为"无云端"，让首次使用能生成新密钥 */
+    }
   }
   if(_syncCfg.gistId){
     try{
@@ -2811,17 +2823,21 @@ function saveSyncCfg(){
   if(on&&pass.length<6){toast('同步密码至少 6 位');return;}
   (function(){
     (async function(){
+      var prevCfg=JSON.parse(JSON.stringify(_syncCfg||{}));
       try{
-        _syncCfg={enabled:on,wsid:wsid,pass:pass,token:token,gistId:_syncCfg.gistId||'',last:_syncCfg.last||0,mkWrap:_syncCfg.mkWrap||null};
-        persistSyncCfg(_syncCfg);
+        if(on)await validateToken();
+        _syncCfg={enabled:on,wsid:wsid,pass:pass,token:token,gistId:(_syncCfg&&_syncCfg.gistId)||'',last:(_syncCfg&&_syncCfg.last)||0,mkWrap:(_syncCfg&&_syncCfg.mkWrap)||null};
         var mk=await ensureMK(pass);_mk=mk;
         var rec=mkToCode(mk);
-        _syncCfg.mkWrap=await wrapMK(pass,mk);
+        _syncCfg={enabled:on,wsid:wsid,pass:pass,token:token,gistId:_syncCfg.gistId||'',last:_syncCfg.last||0,mkWrap:await wrapMK(pass,mk)};
         persistSyncCfg(_syncCfg);
         closeMask();
         showRecCode(rec,on);
         if(on){ syncNow(false); }
-      }catch(e){toast('保存失败：'+(e&&e.message?e.message:e));}
+      }catch(e){
+        _syncCfg=JSON.parse(JSON.stringify(prevCfg));
+        toast('保存失败：'+(e&&e.message?e.message:e));
+      }
     })();
   })();
 }
