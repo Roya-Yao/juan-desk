@@ -786,6 +786,8 @@ function normalize(){
     if(o.tenantPhone==null)o.tenantPhone='';
     if(o.maid==null)o.maid=false;
     if(o.region==null)o.region='';
+    if(o.ownerId==null)o.ownerId='';
+    if(o.ownerName==null)o.ownerName='';
   });
 }
 function load(){
@@ -2534,7 +2536,16 @@ function addDeal(){
   var viewingId=val('dViewing')||'';
   D.deals.unshift({id:id,clientId:clientId,clientName:cl?cl.name:'',listingId:listingId,listingTitle:li?((li.project||'')+' '+(li.phase||'')):'',price:price,commissionPct:pct,splitPct:split,payMode:pay,status:val('dStatus')||'签约',date:val('dDate')||toDay(),note:val('dNote'),createdAt:toDay(),viewingId:viewingId});
   if(viewingId){ var vv=(D.viewings||[]).filter(function(x){return x.id===viewingId})[0]; if(vv){ vv.dealId=id; vv.done=true; } }
-  var _cc=(D.clients||[]).filter(function(x){return x.id===clientId})[0];if(_cc)_cc.level='D 已成交';
+  var _cc=(D.clients||[]).filter(function(x){return x.id===clientId})[0];
+  if(_cc){
+    _cc.level='D 已成交';
+    _cc.ctype='owner';                         // A：成交客户自动转为业主
+    if(li && li.unit && !_cc.addr)_cc.addr=li.unit;   // 记下他买到的房号
+  }
+  if(li){                                       // B：成交房源挂上业主
+    li.ownerId=clientId;
+    li.ownerName=_cc?_cc.name:'';
+  }
   counted();
   if(save()){
     closeMask();
