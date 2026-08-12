@@ -1583,6 +1583,9 @@ function clientDetail(id){
     (c.note?'<div style="margin-top:12px;padding:12px 14px;background:#faf7f1;border-radius:6px;font-size:13.5px;line-height:1.75">'+esc(c.note)+'</div>':'')+
     '<h3 class="sec" style="margin:18px 0 4px;font-size:16px">跟进记录 '+((c.logs||[]).length)+' 次</h3>'+
     ((c.logs||[]).length?c.logs.slice().reverse().map(function(l){return '<div class="row" style="padding:9px 0"><div class="grow"><div class="tiny muted">'+esc(l.d)+'</div><div style="font-size:14px">'+esc(l.t)+'</div></div></div>'}).join(''):'<div class="tiny muted" style="padding:8px 0">还没有跟进记录。</div>')+
+    '<h3 class="sec" style="margin:18px 0 6px;font-size:16px">看房对比</h3>'+
+    '<div style="margin-bottom:10px"><button class="btn sm" onclick="newViewing(\''+c.id+'\')">＋ 再加一套房</button></div>'+
+    clientViewingCompare(c.id)+
     '<div class="foot"><button class="btn danger" onclick="delClient(\''+c.id+'\')">删除</button>'+
     '<button class="btn ghost" onclick="editClient(\''+c.id+'\')">编辑资料</button>'+
     '<button class="btn ghost" onclick="clientToListing(\''+c.id+'\')">转为房源</button>'+
@@ -2682,7 +2685,7 @@ function renderViewings(){
     (pages>1?'<div class="pager"><button class="btn sm ghost" '+(VIEW_PAGE>0?'onclick="VIEW_PAGE--;renderViewings()"':'disabled')+'>‹ 上一页</button><span class="muted">第 '+(VIEW_PAGE+1)+' / '+pages+' 页</span><button class="btn sm ghost" '+(VIEW_PAGE<pages-1?'onclick="VIEW_PAGE++;renderViewings()"':'disabled')+'>下一页 ›</button></div>':'')
   ):'<div class="empty">还没有看房预约，点右上角「+ 新增看房」登记第一场带看。</div>';
 }
-function newViewing(){
+function newViewing(forClient){
   $('modal').innerHTML='<h3>新增看房预约</h3><div class="form" style="margin-top:12px">'+
     '<div class="qa-top" style="grid-column:1/-1">'+
       '<div class="tiny muted" style="margin-bottom:6px">还没客户？直接建档（自动选入下方关联客户）：</div>'+
@@ -2703,6 +2706,7 @@ function newViewing(){
     '</div><div class="foot"><button class="btn ghost" onclick="closeMask()">取消</button><button class="btn" onclick="addViewing()">保存</button></div>';
   QA_SEL='vClient';
   setv('vDate',toDay());
+  if(forClient){ var _h=$('vClient'); if(_h)_h.value=forClient; }
   comboInit({q:'vClientQ',hid:'vClient',pop:'vClientPop',getItems:viewingClientItems,fmt:function(c){return {label:c.name||'(无名)',sub:c.phone||ctypeLabel(c.ctype)};},onPick:renderViewingPhone});
   comboInit({q:'vListingQ',hid:'vListing',pop:'vListingPop',getItems:viewingListingItems,fmt:function(it){return {label:it.label,sub:it.sub};}});
   renderViewingPhone();
@@ -2829,6 +2833,41 @@ function viewingToDeal(id){
   var v=(D.viewings||[]).filter(function(x){return x.id===id})[0];if(!v)return;
   if(v.dealId){ editDeal(v.dealId); return; }
   newDeal(id);
+}
+/* 客户详情内的「看房对比」：把该客户所有看房横向铺开对比 */
+function clientViewingCompare(cid){
+  var vs=(D.viewings||[]).filter(function(v){return v.clientId===cid}).slice().sort(function(a,b){return (a.date||'')<(b.date||'')?-1:1});
+  if(!vs.length)return '<div class="tiny muted" style="padding:8px 0">还没有看房记录。点上方「＋ 再加一套房」登记第一场带看。</div>';
+  var projs={};
+  var rows=vs.map(function(v){
+    var li=null;
+    if(v.listingId && v.listingId.indexOf('c:')!==0){ li=(D.listings||[]).filter(function(x){return x.id===v.listingId})[0]||null; }
+    var proj= li? (li.project||'') : (v.listingTitle||'—');
+    var phase= li? (li.phase||'') : '';
+    var hx= li? listingTypeLabel(li) : '';
+    var area= li&&li.areaSqm? (li.areaSqm+'㎡'+(li.areaSqft?(' / '+li.areaSqft+'sqft'):'')) : '—';
+    var price= li? (li.price? ('AED '+money(li.price)) : (li.rent? ('租 AED '+money(li.rent)) : '—')) : '—';
+    var lstatus= li? (li.status||'') : '';
+    var rating= v.feedback? (v.feedback.rating==='high'?'高':v.feedback.rating==='mid'?'中':'低') : (v.done?'—':'待看');
+    var ratingCls= v.feedback? (v.feedback.rating==='high'?'ok':v.feedback.rating==='mid'?'gold':'late') : 'gold';
+    if(proj)projs[proj]=1;
+    return '<tr>'+
+      '<td data-l="项目/社区"><b>'+esc(proj)+'</b>'+(phase?' <span class="tiny muted">'+esc(phase)+'</span>':'')+'</td>'+
+      '<td data-l="房型">'+(hx||'—')+'</td>'+
+      '<td data-l="面积">'+area+'</td>'+
+      '<td data-l="售价/租价">'+price+'</td>'+
+      '<td data-l="状态">'+(lstatus?'<span class="tag '+(lstatus==='可租'?'rent':'ok')+'">'+esc(lstatus)+'</span>':'—')+(v.done?' <span class="muted tiny">已带看</span>':' <span class="muted tiny">待带看</span>')+'</td>'+
+      '<td data-l="看房日" class="tiny muted">'+esc(v.date||'')+'</td>'+
+      '<td data-l="意向">'+(v.feedback?'<span class="tag '+ratingCls+'">'+rating+'</span>':'<span class="muted tiny">'+rating+'</span>')+'</td>'+
+      '<td data-l="操作" class="right actions">'+
+        (v.dealId?'<button class="btn sm" onclick="editDeal(\''+v.dealId+'\')">看成交</button>':'<button class="btn sm" onclick="viewingToDeal(\''+v.id+'\')">转成交</button>')+
+        '<button class="btn sm ghost" onclick="editViewing(\''+v.id+'\')">看房</button>'+
+      '</td>'+
+    '</tr>';
+  }).join('');
+  var distinct=Object.keys(projs).length;
+  return '<div class="tiny muted" style="margin:2px 0 8px">共 '+vs.length+' 套看房 · 跨 '+distinct+' 个社区/项目</div>'+
+    '<div style="overflow-x:auto"><table><thead><tr><th>项目/社区</th><th>房型</th><th>面积</th><th>售价/租价</th><th>状态</th><th>看房日</th><th>意向</th><th class="right">操作</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 
 /* ==========================================================
