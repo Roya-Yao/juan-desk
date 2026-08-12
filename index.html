@@ -557,6 +557,8 @@ svg.chart{display:block;width:100%;height:auto;overflow:visible}
       <div><label class="f">项目</label><input id="lProject" placeholder="例：The Valley / Damac Hills 2"></div>
       <div><label class="f">期数 / 楼栋</label><input id="lPhase" placeholder="例：PHASE 3 · 联排"></div>
       <div><label class="f">房号</label><input id="lUnit" placeholder="例：A-1205 / TV3-1205"></div>
+      <div><label class="f">卧室（房）</label><input type="number" inputmode="numeric" id="lBeds" placeholder="例：3"></div>
+      <div><label class="f">卫生间（卫）</label><input type="number" inputmode="numeric" id="lBaths" placeholder="例：2"></div>
       <div><label class="f">面积 ㎡ (sqm)</label><input type="number" inputmode="decimal" id="lAreaSqm" placeholder="例：204" oninput="syncArea('lAreaSqm','lAreaSqft',1)"></div>
       <div><label class="f">面积 sqft</label><input type="number" inputmode="decimal" id="lAreaSqft" placeholder="例：2200" oninput="syncArea('lAreaSqft','lAreaSqm',2)"></div>
       <div><label class="f">价格 AED</label><input type="number" inputmode="decimal" id="lPrice"></div>
@@ -766,6 +768,7 @@ function normalize(){
     if(typeof o.links!=='string')o.links='';
     if('photos' in o)delete o.photos;
     if(o.areaSqm==null){o.areaSqm=(o.area!=null)?(+o.area||0):0;o.areaSqft=Math.round(o.areaSqm*10.763910417*10)/10;}
+    if(o.beds==null)o.beds=0;if(o.baths==null)o.baths=0;
     if(o.unit==null)o.unit='';
   });
 }
@@ -986,8 +989,8 @@ function seed(){
     {id:uid(),cat:'成交恭喜',title:'成交恭喜·后续跟进',body:'恭喜您成功拿下这套物业！后续过户与银行贷款我会全程跟进，相关文件清单我会发您。任何疑问随时 WhatsApp 我，祝新家顺利。',demo:true}
   ];
   D.listings=[
-    {id:uid(),project:'The Valley',phase:'PHASE 3 · 联排',unit:'TV3-1205',areaSqm:204,areaSqft:2200,price:2350000,rent:174000,status:'可售',ownerId:'',ownerName:'The Valley PH3 业主（已授权放盘）',note:'业主诚售，可看房，报价含家具，近社区学校',isListing:'是',links:'',follows:[],createdAt:td,demo:true},
-    {id:uid(),project:'Damac Hills 2',phase:'Townhouse · 现房',unit:'DH2-T05',areaSqm:167,areaSqft:1800,price:1680000,rent:132000,status:'已租',ownerId:'',ownerName:'',note:'已出租，租客稳定，年化回报 7.9%',isListing:'否',links:'',follows:[],createdAt:td,demo:true}
+    {id:uid(),project:'The Valley',phase:'PHASE 3 · 联排',unit:'TV3-1205',beds:3,baths:3,areaSqm:204,areaSqft:2200,price:2350000,rent:174000,status:'可售',ownerId:'',ownerName:'The Valley PH3 业主（已授权放盘）',note:'业主诚售，可看房，报价含家具，近社区学校',isListing:'是',links:'',follows:[],createdAt:td,demo:true},
+    {id:uid(),project:'Damac Hills 2',phase:'Townhouse · 现房',unit:'DH2-T05',beds:2,baths:3,areaSqm:167,areaSqft:1800,price:1680000,rent:132000,status:'已租',ownerId:'',ownerName:'',note:'已出租，租客稳定，年化回报 7.9%',isListing:'否',links:'',follows:[],createdAt:td,demo:true}
   ];
   /* 原日程已并入 D.tasks */
 }
@@ -1729,6 +1732,8 @@ function _matchScore(o,c){
   }
   var na=+c.needArea||0;
   if(na){has=true;if(+(o.areaSqm||o.area)>=na){reasons.push('面积≥'+na);score++}else ok=false;}
+  var nt=(c.needType||'').trim().toLowerCase();
+  if(nt){has=true;var tl=listingTypeLabel(o);if(tl&&tl.toLowerCase().indexOf(nt)>=0){reasons.push('户型·'+c.needType);score++}else ok=false;}
   var nr=(c.needRegion||'').trim().toLowerCase();
   if(nr){has=true;var hay=((o.project||'')+' '+(o.phase||'')).toLowerCase();if(hay.indexOf(nr)>=0){reasons.push('区域·'+c.needRegion);score++}else ok=false;}
   if(!has)ok=false;
@@ -1753,7 +1758,7 @@ function openMatchForClient(id){
   if(c.needType)needStr.push('户型'+c.needType);
   if(c.needArea)needStr.push('面积≥'+c.needArea+'㎡');
   if(c.needRegion)needStr.push('区域'+c.needRegion);
-  var body=ms.length?('<div style="margin:6px 0 12px">共匹配到 <b>'+ms.length+'</b> 套</div>'+ms.map(function(m){var o=m.o;return '<div class="row" style="padding:10px 0"><div class="grow"><div style="font-size:15px">'+esc(o.project)+' <span class="tag '+(o.status==='可租'?'rent':'ok')+'">'+esc(o.status)+'</span>'+(o.isListing!=='否'?' <span class="tag" style="background:#e4efe8;color:#27ae60">listing</span>':'')+'</div><div class="tiny muted">'+esc(o.phase||'—')+' · '+esc(o.unit||'—')+(o.areaSqm?(' · '+o.areaSqm+'㎡'+(o.areaSqft?(' / '+o.areaSqft+'sqft'):'')):'')+' · AED '+(o.status==='可租'?money(o.rent):money(o.price))+'</div><div style="margin-top:5px">'+m.reasons.map(function(r){return '<span class="tag" style="background:#eef4f1;color:#2e7d52">'+esc(r)+'</span>'}).join(' ')+'</div></div><button class="btn sm ghost" onclick="closeMask();listingDetail(\''+o.id+'\')">看房源</button></div>';}).join(''))
+  var body=ms.length?('<div style="margin:6px 0 12px">共匹配到 <b>'+ms.length+'</b> 套</div>'+ms.map(function(m){var o=m.o;return '<div class="row" style="padding:10px 0"><div class="grow"><div style="font-size:15px">'+esc(o.project)+' <span class="tag '+(o.status==='可租'?'rent':'ok')+'">'+esc(o.status)+'</span>'+(o.isListing!=='否'?' <span class="tag" style="background:#e4efe8;color:#27ae60">listing</span>':'')+'</div><div class="tiny muted">'+esc(o.phase||'—')+' · '+esc(o.unit||'—')+(o.areaSqm?(' · '+o.areaSqm+'㎡'+(o.areaSqft?(' / '+o.areaSqft+'sqft'):'')):'')+(listingTypeLabel(o)?(' · '+listingTypeLabel(o)):'')+' · AED '+(o.status==='可租'?money(o.rent):money(o.price))+'</div><div style="margin-top:5px">'+m.reasons.map(function(r){return '<span class="tag" style="background:#eef4f1;color:#2e7d52">'+esc(r)+'</span>'}).join(' ')+'</div></div><button class="btn sm ghost" onclick="closeMask();listingDetail(\''+o.id+'\')">看房源</button></div>';}).join(''))
     :'<div class="empty">没有符合该客户需求的房源。<br>可在「房源库」补登记，或放宽客户需求条件。</div>';
   $('modal').innerHTML='<h3>为「'+esc(c.name)+'」匹配房源</h3>'+
     '<div class="tiny muted" style="margin:6px 0 12px">'+(needStr.length?needStr.join(' · '):'该客户尚未填写需求，去「编辑资料」补充即可匹配')+'</div>'+body+
@@ -1766,7 +1771,7 @@ function openMatchForListing(id){
   var body=ms.length?('<div style="margin:6px 0 12px">共匹配到 <b>'+ms.length+'</b> 位客户</div>'+ms.map(function(m){var c=m.c;return '<div class="row" style="padding:10px 0"><div class="grow"><div style="font-size:15px">'+esc(c.name)+' <span class="tag '+(c.ctype==='owner'?'gold':c.ctype==='buyer'?'blue':'')+'">'+ctypeLabel(c.ctype)+'</span></div><div class="tiny muted">'+esc(c.phone||'—')+(c.level?' · '+esc(c.level):'')+'</div><div style="margin-top:5px">'+m.reasons.map(function(r){return '<span class="tag" style="background:#eef4f1;color:#2e7d52">'+esc(r)+'</span>'}).join(' ')+'</div></div><button class="btn sm ghost" onclick="closeMask();clientDetail(\''+c.id+'\')">看客户</button></div>';}).join(''))
     :'<div class="empty">没有符合该房源需求的客户。<br>可在「客户跟踪」补填客户需求，或登记新客户。</div>';
   $('modal').innerHTML='<h3>为「'+esc(o.project||'房源')+'」匹配客户</h3>'+
-    '<div class="tiny muted" style="margin:6px 0 12px">'+esc(o.status)+' · AED '+(o.status==='可租'?money(o.rent):money(o.price))+(o.areaSqm?(' · '+o.areaSqm+'㎡'+(o.areaSqft?(' / '+o.areaSqft+'sqft'):'')):'')+(o.unit?(' · '+o.unit):'')+'</div>'+body+
+    '<div class="tiny muted" style="margin:6px 0 12px">'+esc(o.status)+' · AED '+(o.status==='可租'?money(o.rent):money(o.price))+(o.areaSqm?(' · '+o.areaSqm+'㎡'+(o.areaSqft?(' / '+o.areaSqft+'sqft'):'')):'')+(o.unit?(' · '+o.unit):'')+(listingTypeLabel(o)?(' · '+listingTypeLabel(o)):'')+'</div>'+body+
     '<div class="foot"><button class="btn ghost" onclick="closeMask()">关闭</button></div>';
   $('mask').classList.add('on');
 }
@@ -1780,7 +1785,7 @@ function runMatch(){
   var id=val('matchClient');if(!id){toast('请先选择客户');return;}
   var c=(D.clients||[]).filter(function(x){return x.id===id})[0];if(!c){toast('客户不存在');return;}
   var ms=matchListingsForClient(c);
-  $('matchResult').innerHTML=ms.length?('<h3 class="sec" style="font-size:16px">匹配结果（'+ms.length+' 套）</h3>'+ms.map(function(m){var o=m.o;return '<div class="row" style="padding:10px 0"><div class="grow"><div style="font-size:15px">'+esc(o.project)+' <span class="tag '+(o.status==='可租'?'rent':'ok')+'">'+esc(o.status)+'</span></div><div class="tiny muted">'+esc(o.phase||'—')+' · '+esc(o.unit||'—')+(o.areaSqm?(' · '+o.areaSqm+'㎡'+(o.areaSqft?(' / '+o.areaSqft+'sqft'):'')):'')+' · AED '+(o.status==='可租'?money(o.rent):money(o.price))+'</div><div style="margin-top:5px">'+m.reasons.map(function(r){return '<span class="tag" style="background:#eef4f1;color:#2e7d52">'+esc(r)+'</span>'}).join(' ')+'</div></div><button class="btn sm ghost" onclick="listingDetail(\''+o.id+'\')">看房源</button></div>';}).join(''))
+  $('matchResult').innerHTML=ms.length?('<h3 class="sec" style="font-size:16px">匹配结果（'+ms.length+' 套）</h3>'+ms.map(function(m){var o=m.o;return '<div class="row" style="padding:10px 0"><div class="grow"><div style="font-size:15px">'+esc(o.project)+' <span class="tag '+(o.status==='可租'?'rent':'ok')+'">'+esc(o.status)+'</span></div><div class="tiny muted">'+esc(o.phase||'—')+' · '+esc(o.unit||'—')+(o.areaSqm?(' · '+o.areaSqm+'㎡'+(o.areaSqft?(' / '+o.areaSqft+'sqft'):'')):'')+(listingTypeLabel(o)?(' · '+listingTypeLabel(o)):'')+' · AED '+(o.status==='可租'?money(o.rent):money(o.price))+'</div><div style="margin-top:5px">'+m.reasons.map(function(r){return '<span class="tag" style="background:#eef4f1;color:#2e7d52">'+esc(r)+'</span>'}).join(' ')+'</div></div><button class="btn sm ghost" onclick="listingDetail(\''+o.id+'\')">看房源</button></div>';}).join(''))
     :'<div class="empty">没有符合该客户需求的房源。</div>';
 }
 /* ==========================================================
@@ -2146,6 +2151,8 @@ function syncArea(fromId,toId,dir){
   if(isNaN(v)){t.value='';return;}
   t.value=dir===1?sqmToSqft(v):sqftToSqm(v);
 }
+/* 户型标签：室(房)数 + 卫数 → "2房2卫"，用于展示与智能匹配（对接客户「户型需求」） */
+function listingTypeLabel(o){var b=+o.beds||0,w=+o.baths||0;if(!b&&!w)return '';return (b?b+'房':'')+(w?w+'卫':'');}
 function ownerNameFromId(id){if(!id)return '';var c=(D.clients||[]).filter(function(x){return x.id===id})[0];return c?c.name:'';}
 function listingOwnerOptions(sel,q){
   var cs=(D.clients||[]);
@@ -2168,6 +2175,7 @@ function listingDetail(id){
     ['项目',o.project],
     ['期数 / 楼栋',o.phase],
     ['房号',o.unit],
+    ['户型',listingTypeLabel(o)],
     ['面积',(o.areaSqm?o.areaSqm+' ㎡':'')+(o.areaSqft?(' / '+o.areaSqft+' sqft'):'')],
     ['价格',o.price?'AED '+money(o.price):''],
     ['年租',o.rent?'AED '+money(o.rent):''],
@@ -2221,6 +2229,7 @@ function addListing(){
   var project=val('lProject');if(!project){toast('请填写项目名称');return}
   var o={
     id:uid(),project:project,phase:val('lPhase'),unit:val('lUnit'),
+    beds:parseFloat(val('lBeds'))||0,baths:parseFloat(val('lBaths'))||0,
     areaSqm:parseFloat(val('lAreaSqm'))||0,areaSqft:parseFloat(val('lAreaSqft'))||0,price:parseFloat(val('lPrice'))||0,rent:parseFloat(val('lRent'))||0,
     status:val('lStatus')||'可售',
     isListing:val('lListing')||'否',
@@ -2229,7 +2238,7 @@ function addListing(){
   };
   D.listings.unshift(o);counted();
   if(save()){
-    ['lProject','lPhase','lUnit','lAreaSqm','lAreaSqft','lPrice','lRent','lNote','lListing','lLinks'].forEach(function(i){setv(i,'')});
+    ['lProject','lPhase','lUnit','lBeds','lBaths','lAreaSqm','lAreaSqft','lPrice','lRent','lNote','lListing','lLinks'].forEach(function(i){setv(i,'')});
     toggleHide('listForm');renderListings();renderToday();toast('房源已登记');
   }
 }
@@ -2239,6 +2248,8 @@ function editListing(id){
     '<div><label class="f">项目</label><input id="elProject" value="'+esc(o.project||'')+'"></div>'+
     '<div><label class="f">期数 / 楼栋</label><input id="elPhase" value="'+esc(o.phase||'')+'"></div>'+
     '<div><label class="f">房号</label><input id="elUnit" value="'+esc(o.unit||'')+'"></div>'+
+    '<div><label class="f">卧室（房）</label><input type="number" inputmode="numeric" id="elBeds" value="'+esc(o.beds||'')+'"></div>'+
+    '<div><label class="f">卫生间（卫）</label><input type="number" inputmode="numeric" id="elBaths" value="'+esc(o.baths||'')+'"></div>'+
     '<div><label class="f">面积 ㎡ (sqm)</label><input type="number" inputmode="decimal" id="elAreaSqm" value="'+esc(o.areaSqm||'')+'" oninput="syncArea(\'elAreaSqm\',\'elAreaSqft\',1)"></div>'+
     '<div><label class="f">面积 sqft</label><input type="number" inputmode="decimal" id="elAreaSqft" value="'+esc(o.areaSqft||'')+'" oninput="syncArea(\'elAreaSqft\',\'elAreaSqm\',2)"></div>'+
     '<div><label class="f">价格 AED</label><input type="number" inputmode="decimal" id="elPrice" value="'+esc(o.price||'')+'"></div>'+
@@ -2253,7 +2264,7 @@ function editListing(id){
 }
 function saveListing(id){
   var o=(D.listings||[]).filter(function(x){return x.id===id})[0];if(!o)return;
-  o.project=val('elProject')||o.project;o.phase=val('elPhase');o.unit=val('elUnit');
+  o.project=val('elProject')||o.project;o.phase=val('elPhase');o.unit=val('elUnit');o.beds=parseFloat(val('elBeds'))||0;o.baths=parseFloat(val('elBaths'))||0;
   o.areaSqm=parseFloat(val('elAreaSqm'))||0;o.areaSqft=parseFloat(val('elAreaSqft'))||0;o.price=parseFloat(val('elPrice'))||0;o.rent=parseFloat(val('elRent'))||0;
   o.status=val('elStatus')||'可售';o.ownerId=val('elOwner')||'';o.ownerName=ownerNameFromId(val('elOwner'));o.note=val('elNote');
   o.isListing=val('elListing')||'是';
@@ -2298,7 +2309,7 @@ function renderListings(){
     if(LISTF!=='全部'&&o.status!==LISTF)return false;
     if(LISTP!=='全部'&&o.project!==LISTP)return false;
     if(!q)return true;
-    return (o.project+' '+(o.phase||'')+' '+(o.unit||'')+' '+(o.note||'')+' '+(o.ownerName||'')+' '+(o.links||'')).toLowerCase().indexOf(q)>=0;
+    return (o.project+' '+(o.phase||'')+' '+(o.unit||'')+' '+listingTypeLabel(o)+' '+(o.note||'')+' '+(o.ownerName||'')+' '+(o.links||'')).toLowerCase().indexOf(q)>=0;
   }).sort(function(a,b){return (b.status==='可售'?1:0)-(a.status==='可售'?1:0)||(a.createdAt<b.createdAt?1:-1)});
   var total=list.length,pages=Math.max(1,Math.ceil(total/LIST_PAGE_SIZE));
   if(LIST_PAGE>=pages)LIST_PAGE=pages-1;if(LIST_PAGE<0)LIST_PAGE=0;
@@ -2308,7 +2319,7 @@ function renderListings(){
     pageItems.map(function(o){
       var r=roi(o.price,o.rent);
       return '<tr><td data-l="房源"><div style="display:flex;gap:10px;align-items:center"><div class="list-thumb empty">'+ICON_HOME+'</div><div><div style="font-size:15px">'+esc(o.project)+(o.demo?' <span class="tag">演示</span>':'')+'</div>'+
-        '<div class="tiny muted">'+esc(o.phase||'—')+' · '+(o.unit?esc(o.unit):'—')+'</div></div></td>'+
+        '<div class="tiny muted">'+esc(o.phase||'—')+' · '+(o.unit?esc(o.unit):'—')+(listingTypeLabel(o)?(' · '+listingTypeLabel(o)):'')+'</div></div></td>'+
         '<td data-l="面积/价格"><div>'+(o.areaSqm?o.areaSqm+' ㎡':'—')+(o.areaSqft?' <span class="tiny muted">/ '+o.areaSqft+' sqft</span>':'')+'</div><div class="money '+(o.price?'in':'')+'">AED '+money(o.price||0)+'</div></td>'+
         '<td data-l="租金回报">'+(o.rent?'<div class="num" style="font-size:18px">'+r+'%</div><div class="tiny muted">年租 '+money(o.rent)+'</div>':'<span class="muted">—</span>')+'</td>'+
         '<td data-l="状态">'+statusTag(o.status)+(o.isListing==='否'?'':'<span class="tag" style="background:#e4efe8;color:#27ae60">listing</span>')+'</td>'+
@@ -2323,8 +2334,8 @@ function renderListings(){
 function exportListingsExcel(){
   var all=D.listings||[];
   if(!all.length){toast('还没有房源可导出');return;}
-  var head=['项目','期数/楼栋','房号','面积(㎡)','面积(sqft)','价格(AED)','年租(AED)','租金回报(%)','状态','是否 listing','关联业主','挂牌链接','备注','创建日期'];
-  var rows=all.map(function(o){return [o.project||'',o.phase||'',o.unit||'',o.areaSqm||0,o.areaSqft||0,o.price||0,o.rent||0,roi(o.price,o.rent),o.status||'',o.isListing||'否',o.ownerName||'',(o.links||'').replace(/\n/g,' '),o.note||'',o.createdAt||'']});
+  var head=['项目','期数/楼栋','房号','室','卫','面积(㎡)','面积(sqft)','价格(AED)','年租(AED)','租金回报(%)','状态','是否 listing','关联业主','挂牌链接','备注','创建日期'];
+  var rows=all.map(function(o){return [o.project||'',o.phase||'',o.unit||'',o.beds||0,o.baths||0,o.areaSqm||0,o.areaSqft||0,o.price||0,o.rent||0,roi(o.price,o.rent),o.status||'',o.isListing||'否',o.ownerName||'',(o.links||'').replace(/\n/g,' '),o.note||'',o.createdAt||'']});
   var t='<table border="1"><tr>'+head.map(function(h){return '<th style="background:#1e3b33;color:#fff">'+h+'</th>'}).join('')+'</tr>'+
     rows.map(function(r){return '<tr>'+r.map(function(c){return '<td>'+esc(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';
   var html='<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body>'+t+'</body></html>';
