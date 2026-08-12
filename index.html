@@ -570,7 +570,7 @@ svg.chart{display:block;width:100%;height:auto;overflow:visible}
   <div class="page-head">
     <div><div class="eyebrow">Deals</div><h2 class="page">成交 &amp; 佣金看板</h2>
     <div class="page-sub">登记每笔成交（关联客户与房源），自动汇总本月佣金并对比月度目标。中介靠数字活，看得见进度才提气。</div></div>
-    <div class="btn-row"><button class="btn gold" onclick="newDeal()">+ 新增成交</button></div>
+    <div class="btn-row"><button class="btn gold" onclick="newDeal()">+ 新增成交</button><button class="btn ghost" onclick="exportDealsExcel()">导出 Excel</button></div>
   </div>
   <div class="split c2" style="margin-top:4px">
     <div class="panel">
@@ -639,6 +639,18 @@ svg.chart{display:block;width:100%;height:auto;overflow:visible}
   <div class="view-head"><h2 class="vt">获客来源分析</h2><p class="vsub">按渠道统计客户量与转化率（成交数 ÷ 客户数）</p></div>
   <div id="sourceBox" class="source-box"></div>
 </section>
+
+<!-- ============ 看房预约 ============ -->
+<section class="view" id="v-viewings">
+  <div class="page-head">
+    <div><div class="eyebrow">Viewings</div><h2 class="page">看房预约</h2>
+    <div class="page-sub">登记每一次带看（关联客户与房源 + 时间地点），今天和过期的会自动出现在首页「今天待处理」，一键标记带看完成。</div></div>
+    <div class="btn-row"><button class="btn gold" onclick="newViewing()">+ 新增看房</button><button class="btn ghost" onclick="exportViewingsExcel()">导出 Excel</button></div>
+  </div>
+  <div class="metrics" id="viewingMetrics" style="margin-top:4px"></div>
+  <div class="panel flat" style="margin-bottom:16px"><div class="chips" id="viewingChips"></div></div>
+  <div class="panel" id="viewingList"></div>
+</section>
 </main>
 <!-- 底部导航：静态写死，任何 JS/数据异常都不会消失 -->
 <nav class="tabbar" id="tabbar">
@@ -654,6 +666,7 @@ svg.chart{display:block;width:100%;height:auto;overflow:visible}
   <div class="mb-drawer-sheet">
     <div class="mb-drawer-head"><span>更多</span><button class="mb-drawer-close" onclick="closeDrawer()">✕</button></div>
     <button class="mb-drawer-item" onclick="go('deals');closeDrawer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 9v6M18 9v6"/></svg><span>成交佣金</span></button>
+    <button class="mb-drawer-item" onclick="go('viewings');closeDrawer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>看房预约</span></button>
     <button class="mb-drawer-item" onclick="go('roya');closeDrawer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.4H22l-6 4.4 2.3 7.2L12 16.6 5.7 21l2.3-7.2-6-4.4h7.6z"/></svg><span>Roya</span></button>
     <button class="mb-drawer-item" onclick="go('tasks');closeDrawer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg><span>任务与日程</span></button>
     <button class="mb-drawer-item" onclick="go('match');closeDrawer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a4 4 0 0 0 5.7.4l3-3a4 4 0 0 0-5.7-5.7l-1.5 1.5"/><path d="M14 11a4 4 0 0 0-5.7-.4l-3 3a4 4 0 0 0 5.7 5.7l1.5-1.5"/></svg><span>智能匹配</span></button>
@@ -713,7 +726,7 @@ $('mask') && ($('mask').onclick=function(e){if(e.target===this)closeMask()});
    数据层：读写 / 快照 / 损坏恢复 / 备份提醒
    ========================================================== */
 function blank(){
-  return {v:1,tasks:[],ledger:[],clients:[],tpls:[],listings:[],deals:[],dld:[],
+  return {v:1,tasks:[],ledger:[],clients:[],tpls:[],listings:[],deals:[],viewings:[],dld:[],
     growth:[],babyRemind:[],
     baby:{name:'Roya',birth:''},
     settings:{budget:0,dealGoal:0},
@@ -721,7 +734,7 @@ function blank(){
 }
 function normalize(){
   if(!D||typeof D!=='object'){D=blank();return}
-  ['tasks','ledger','clients','tpls','listings','deals','dld','growth','babyRemind'].forEach(function(k){
+  ['tasks','ledger','clients','tpls','listings','deals','viewings','dld','growth','babyRemind'].forEach(function(k){
     if(!Array.isArray(D[k]))D[k]=[];
   });
   if(!D.baby||typeof D.baby!=='object')D.baby={name:'Roya',birth:''};
@@ -845,7 +858,7 @@ function importFail(msg){
   $('mask').classList.add('on');
 }
 function count(d){
-  var n=0,ks=['tasks','ledger','clients','tpls','listings','deals','dld','growth','babyRemind'];
+  var n=0,ks=['tasks','ledger','clients','tpls','listings','deals','viewings','dld','growth','babyRemind'];
   for(var i=0;i<ks.length;i++){if(Array.isArray(d[ks[i]]))n+=d[ks[i]].length}
   return n;
 }
@@ -885,7 +898,7 @@ function wipeAll(){
 }
 function clearDemo(){
   confirmBox('清空演示数据','将删除所有带「演示」标记的示例记录，你自己录入的内容会保留。','清空演示',function(){
-    var ks=['tasks','ledger','clients','tpls','listings','deals','dld','growth','babyRemind'];
+    var ks=['tasks','ledger','clients','tpls','listings','deals','viewings','dld','growth','babyRemind'];
     ks.forEach(function(k){D[k]=(D[k]||[]).filter(function(x){return !x.demo})});
     D.meta.demo=false;save();renderAll();toast('演示数据已清空');
   });
@@ -943,6 +956,10 @@ function seed(){
   var c5={id:uid(),name:'Ahmed S.',phone:'+971 54 777 8899',wx:'',email:'ahmed@example.com',whatsapp:'+971 54 777 8899',addr:'Business Bay',birth:'1988-11-09',level:'A 高意向',src:'LinkedIn',
       note:'企业主，预算 300 万+ AED，关注黄金签证与高端现房',first:addDays(td,-12),stage:3,logs:[{d:addDays(td,-12),t:'LinkedIn 接洽'},{d:addDays(td,-9),t:'线上会议讲持有成本'}],demo:true,createdAt:td};
   D.clients=[c1,c2,c3,c4,c5];
+  D.viewings=[
+    {id:uid(),clientId:c2.id,clientName:c2.name,listingId:'',listingTitle:'Damac Hills 2 · 现房',date:td,time:'16:30',place:'DH2 售楼处集合',note:'现房带看，重点讲租金回报',done:false,createdAt:td,demo:true},
+    {id:uid(),clientId:c1.id,clientName:c1.name,listingId:'',listingTitle:'The Valley PH3 联排',date:addDays(td,3),time:'11:00',place:'The Valley 售楼处',note:'二手联排复看',done:false,createdAt:td,demo:true}
+  ];
   D.deals=[
     {id:uid(),clientId:c1.id,clientName:c1.name,listingId:'',listingTitle:'The Valley PH3 联排',price:2350000,commissionPct:2,splitPct:50,payMode:'转账',status:'已收佣金',date:addDays(td,-10),note:'The Valley 二手联排成交',createdAt:td,demo:true},
     {id:uid(),clientId:c3.id,clientName:c3.name,listingId:'',listingTitle:'',price:1500000,commissionPct:2,splitPct:50,payMode:'转账',status:'签约',date:addDays(td,-2),note:'小红书首单，期房意向',createdAt:td,demo:true},
@@ -976,6 +993,7 @@ var NAV=[
   {id:'match',name:'智能匹配',ic:'<path d="M10 13a4 4 0 0 0 5.7.4l3-3a4 4 0 0 0-5.7-5.7l-1.5 1.5"/><path d="M14 11a4 4 0 0 0-5.7-.4l-3 3a4 4 0 0 0 5.7 5.7l1.5-1.5"/>'},
   {id:'source',name:'获客来源',ic:'<path d="M3 4h18l-7 8v6l-4 2v-8z"/>'},
   {id:'deals',name:'成交佣金',ic:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 9v6M18 9v6"/>'},
+  {id:'viewings',name:'看房预约',ic:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'},
   {id:'roya',name:'Roya',ic:'<path d="M12 2l2.4 7.4H22l-6 4.4 2.3 7.2L12 16.6 5.7 21l2.3-7.2-6-4.4h7.6z"/>'}
   ,{id:'sync',name:'数据同步',ic:'<path d="M4 12a8 8 0 0 1 13.7-5.6L20 8"/><path d="M20 4v4h-4"/><path d="M20 12a8 8 0 0 1-13.7 5.6L4 16"/><path d="M4 20v-4h4"/>'}
 ];
@@ -1004,6 +1022,7 @@ function go(id){
   if(id==='source'&&typeof renderSource==='function'){try{renderSource()}catch(e){}}
   if(id==='listings'&&typeof renderListings==='function'){try{renderListings()}catch(e){}}
   if(id==='deals'&&typeof renderDeals==='function'){try{renderDeals()}catch(e){}}
+  if(id==='viewings'&&typeof renderViewings==='function'){try{renderViewings()}catch(e){}}
   try{window.scrollTo({top:0,behavior:'smooth'})}catch(e){}
 }
 function renderTabbar(){
@@ -1049,6 +1068,17 @@ function todayItems(){
         btn:'记录跟进',fn:"followModal('"+o.c.id+"')",sort:n<0?0:2});
     });
   }catch(e){console.error('todayItems.due',e)}
+  try{
+    (D.viewings||[]).forEach(function(v){
+      if(v.done)return;
+      var n=diffDays(parseDay(v.date||toDay()),today0());
+      if(n<=0){
+        out.push({src:'看房预约',late:n<0,txt:(v.clientName||'客户')+' → '+(v.listingTitle||'房源'),
+          sub:(n<0?'看房已过期 '+(-n)+' 天，尽快安排':'今天'+(' '+v.time||'')+' 看房')+(v.place?' · '+v.place:''),
+          btn:'标记带看完成',fn:"toggleViewing('"+v.id+"')",sort:n<0?0:2});
+      }
+    });
+  }catch(e){console.error('todayItems.viewings',e)}
   try{
     birthdaysWithin(0).forEach(function(c){
       out.push({src:'客户生日',late:false,txt:c.name+' 今天生日',sub:'发一句祝福，比推房源有用',btn:'查看客户',fn:"go('client')",sort:1});
@@ -1775,6 +1805,7 @@ function renderAll(){
   if(typeof renderTpls==='function')safe('tpls',renderTpls);
   if(typeof renderListings==='function')safe('listings',renderListings);
   if(typeof renderDeals==='function')safe('deals',renderDeals);
+  if(typeof renderViewings==='function')safe('viewings',renderViewings);
   if(typeof renderRoya==='function')safe('roya',renderRoya);
 }
 function init(){
@@ -2332,9 +2363,10 @@ function renderDeals(){
   $('dealList').innerHTML=total?(
     '<table><thead><tr><th>客户</th><th>房源</th><th class="right">成交价</th><th class="right">佣金比例</th><th class="right">佣金</th><th>分成</th><th>入账</th><th>状态</th><th>日期</th><th class="right">操作</th></tr></thead><tbody>'+
     page.map(function(d){
+      var _ca=(D.clients||[]).filter(function(x){return x.id===d.clientId})[0];
       return '<tr>'+
         '<td data-l="客户"><b>'+esc(d.clientName||'')+'</b></td>'+
-        '<td data-l="房源">'+(d.listingTitle||'—')+'</td>'+
+        '<td data-l="房源">'+(d.listingTitle||'—')+'<div class="tiny muted">房号 '+( _ca?esc(_ca.addr||'—'):'—')+'</div></td>'+
         '<td data-l="成交价" class="right">'+money(d.price)+'</td>'+
         '<td data-l="比例" class="right">'+(+d.commissionPct||0)+'%</td>'+
         '<td data-l="佣金" class="right"><b>'+money(dealCommission(d))+'</b></td>'+
@@ -2374,6 +2406,7 @@ function addDeal(){
   var listingId=val('dListing')||'';
   var li=listingId?(D.listings||[]).filter(function(x){return x.id===listingId})[0]:null;
   D.deals.unshift({id:uid(),clientId:clientId,clientName:cl?cl.name:'',listingId:listingId,listingTitle:li?((li.project||'')+' '+(li.phase||'')):'',price:price,commissionPct:pct,splitPct:split,payMode:pay,status:val('dStatus')||'签约',date:val('dDate')||toDay(),note:val('dNote'),createdAt:toDay()});
+  var _cc=(D.clients||[]).filter(function(x){return x.id===clientId})[0];if(_cc)_cc.level='D 已成交';
   counted();
   if(save()){closeMask();renderDeals();toast('成交已登记')}
 }
@@ -2397,6 +2430,123 @@ function delDeal(id){
   confirmBox('删除成交','这条成交记录将被永久删除。','删除',function(){
     D.deals=D.deals.filter(function(x){return x.id!==id});save();renderDeals();
   },true);
+}
+function exportDealsExcel(){
+  var head=['客户','房源','房号','成交价(AED)','佣金比例','佣金(AED)','分成%','入账方式','状态','日期','备注'];
+  var rows=(D.deals||[]).slice().sort(function(a,b){return (b.date||'')<(a.date||'')?-1:1}).map(function(d){
+    var ca=(D.clients||[]).filter(function(x){return x.id===d.clientId})[0];
+    return [d.clientName||'',d.listingTitle||'',ca?ca.addr:'',(+d.price||0),(+d.commissionPct||0)+'%',Math.round(dealCommission(d)),(+d.splitPct||0)+'%',d.payMode||'',d.status||'',d.date||'',d.note||''];
+  });
+  var t='<table border="1"><tr>'+head.map(function(h){return '<th style="background:#1e3b33;color:#fff">'+h+'</th>'}).join('')+'</tr>'+
+    rows.map(function(r){return '<tr>'+r.map(function(c){return '<td>'+esc(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';
+  var html='<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body>'+t+'</body></html>';
+  download('Juan的工作台_成交佣金_'+toDay()+'.xls','\ufeff'+html,'application/vnd.ms-excel;charset=utf-8');
+  toast('Excel 已导出');
+}
+
+/* ==========================================================
+   看房预约（关联客户 + 房源 + 时间，进入今天待处理）
+   ========================================================== */
+var VIEWF='待带看', VIEW_PAGE=0, VIEW_PAGE_SIZE=30;
+function viewingClientOptions(sel){return dealClientOptions(sel);}
+function renderViewings(){
+  if(!$('viewingList'))return;
+  var all=(D.viewings||[]), t0=today0(), today=toDay();
+  var pending=all.filter(function(v){return !v.done});
+  var weekEnd=new Date(t0); weekEnd.setDate(weekEnd.getDate()+7);
+  var week=pending.filter(function(v){var d=parseDay(v.date||today);return d>=t0&&d<weekEnd}).length;
+  $('viewingMetrics').innerHTML=
+    mtr('待带看',pending.length+' 场','')+
+    mtr('本周看房',week+' 场','未来 7 天')+
+    mtr('累计看房',all.length+' 场','');
+  var fs=['待带看','已带看','全部'];
+  $('viewingChips').innerHTML=fs.map(function(f){return '<button class="chip '+(VIEWF===f?'on':'')+'" onclick="VIEWF=\''+f+'\';VIEW_PAGE=0;renderViewings()">'+f+'</button>'}).join('');
+  var list=all.slice().sort(function(a,b){return (a.date||'')<(b.date||'')?-1:1}).filter(function(v){return VIEWF==='全部'||(VIEWF==='待带看'&&!v.done)||(VIEWF==='已带看'&&v.done)});
+  var total=list.length, pages=Math.max(1,Math.ceil(total/VIEW_PAGE_SIZE));
+  if(VIEW_PAGE>=pages)VIEW_PAGE=pages-1;
+  var page=list.slice(VIEW_PAGE*VIEW_PAGE_SIZE,(VIEW_PAGE+1)*VIEW_PAGE_SIZE);
+  $('viewingList').innerHTML=total?(
+    '<table><thead><tr><th>客户</th><th>房源</th><th>日期</th><th>时间</th><th>地点</th><th>状态</th><th class="right">操作</th></tr></thead><tbody>'+
+    page.map(function(v){
+      var late=!v.done&&diffDays(parseDay(v.date||today),t0)<0;
+      return '<tr>'+
+        '<td data-l="客户"><b>'+esc(v.clientName||'')+'</b></td>'+
+        '<td data-l="房源">'+(v.listingTitle||'—')+'</td>'+
+        '<td data-l="日期" class="tiny muted" style="'+(late?'color:var(--red)':'')+'">'+esc(v.date||'')+(late?' · 已过期':'')+'</td>'+
+        '<td data-l="时间">'+(v.time||'—')+'</td>'+
+        '<td data-l="地点" class="tiny muted">'+esc(v.place||'—')+'</td>'+
+        '<td data-l="状态">'+(v.done?'<span class="tag ok">已带看</span>':'<span class="tag '+(late?'late':'gold')+'">待带看</span>')+'</td>'+
+        '<td data-l="操作" class="right actions"><button class="btn sm ghost" onclick="toggleViewing(\''+v.id+'\')">'+(v.done?'撤销':'完成')+'</button><button class="btn sm ghost" onclick="editViewing(\''+v.id+'\')">编辑</button><button class="btn sm ghost" onclick="delViewing(\''+v.id+'\')">删除</button></td>'+
+      '</tr>';
+    }).join('')+'</tbody></table>'+
+    (pages>1?'<div class="pager"><button class="btn sm ghost" '+(VIEW_PAGE>0?'onclick="VIEW_PAGE--;renderViewings()"':'disabled')+'>‹ 上一页</button><span class="muted">第 '+(VIEW_PAGE+1)+' / '+pages+' 页</span><button class="btn sm ghost" '+(VIEW_PAGE<pages-1?'onclick="VIEW_PAGE++;renderViewings()"':'disabled')+'>下一页 ›</button></div>':'')
+  ):'<div class="empty">还没有看房预约，点右上角「+ 新增看房」登记第一场带看。</div>';
+}
+function newViewing(){
+  var firstClient=(D.clients||[])[0];
+  $('modal').innerHTML='<h3>新增看房预约</h3><div class="form" style="margin-top:12px">'+
+    '<div><label class="f">关联客户</label><select id="vClient">'+viewingClientOptions(firstClient?firstClient.id:'')+'</select></div>'+
+    '<div><label class="f">关联房源</label><select id="vListing"><option value="">— 无（纯带看意向）—</option>'+dealListingOptions('')+'</select></div>'+
+    '<div><label class="f">日期</label><input type="date" id="vDate"></div>'+
+    '<div><label class="f">时间</label><input type="time" id="vTime"></div>'+
+    '<div><label class="f">地点 / 集合点</label><input id="vPlace" placeholder="例：DH2 售楼处集合"></div>'+
+    '<div class="wide"><label class="f">备注</label><textarea id="vNote" placeholder="选填"></textarea></div>'+
+    '</div><div class="foot"><button class="btn ghost" onclick="closeMask()">取消</button><button class="btn" onclick="addViewing()">保存</button></div>';
+  setv('vClient',firstClient?firstClient.id:'');setv('vDate',toDay());setv('vTime','');setv('vPlace','');setv('vNote','');
+  $('vListing').innerHTML=(D.listings||[]).length?'<option value="">— 无（纯带看意向）—</option>'+dealListingOptions(''):'<option value="">— 暂无房源 —</option>';
+  $('mask').classList.add('on');
+}
+function addViewing(){
+  var clientId=val('vClient');if(!clientId){toast('请选择关联客户');return;}
+  var date=val('vDate');if(!date){toast('请选择日期');return;}
+  var cl=(D.clients||[]).filter(function(x){return x.id===clientId})[0];
+  var listingId=val('vListing')||'';
+  var li=listingId?(D.listings||[]).filter(function(x){return x.id===listingId})[0]:null;
+  D.viewings.unshift({id:uid(),clientId:clientId,clientName:cl?cl.name:'',listingId:listingId,listingTitle:li?((li.project||'')+' '+(li.phase||'')):'',date:date,time:val('vTime'),place:val('vPlace'),note:val('vNote'),done:false,createdAt:toDay()});
+  counted();
+  if(save()){closeMask();renderAll();toast('看房预约已登记')}
+}
+function editViewing(id){
+  var v=(D.viewings||[]).filter(function(x){return x.id===id})[0];if(!v)return;
+  $('modal').innerHTML='<h3>编辑看房</h3><div class="form" style="margin-top:12px">'+
+    '<div><label class="f">关联客户</label><select id="evClient">'+viewingClientOptions(v.clientId)+'</select></div>'+
+    '<div><label class="f">关联房源</label><select id="evListing"><option value="">— 纯带看意向 —</option>'+dealListingOptions(v.listingId||'')+'</select></div>'+
+    '<div><label class="f">日期</label><input type="date" id="evDate" value="'+esc(v.date||'')+'"></div>'+
+    '<div><label class="f">时间</label><input type="time" id="evTime" value="'+esc(v.time||'')+'"></div>'+
+    '<div><label class="f">地点</label><input id="evPlace" value="'+esc(v.place||'')+'"></div>'+
+    '<div class="wide"><label class="f">备注</label><textarea id="evNote">'+esc(v.note||'')+'</textarea></div></div>'+
+    '<div class="foot"><button class="btn ghost" onclick="closeMask()">取消</button><button class="btn" onclick="saveViewing(\''+id+'\')">保存</button></div>';
+  $('evListing').innerHTML=(D.listings||[]).length?'<option value="">— 纯带看意向 —</option>'+dealListingOptions(v.listingId||''):'<option value="">— 暂无房源 —</option>';
+  $('mask').classList.add('on');
+}
+function saveViewing(id){
+  var v=(D.viewings||[]).filter(function(x){return x.id===id})[0];if(!v)return;
+  var listingId=val('evListing')||'';
+  var li=listingId?(D.listings||[]).filter(function(x){return x.id===listingId})[0]:null;
+  v.clientId=val('evClient');var cl=(D.clients||[]).filter(function(x){return x.id===v.clientId})[0];v.clientName=cl?cl.name:'';
+  v.listingId=listingId;v.listingTitle=li?((li.project||'')+' '+(li.phase||'')):'';
+  v.date=val('evDate')||v.date;v.time=val('evTime');v.place=val('evPlace');v.note=val('evNote');
+  save();closeMask();renderAll();toast('已保存');
+}
+function delViewing(id){
+  confirmBox('删除看房','这条看房记录将被永久删除。','删除',function(){
+    D.viewings=D.viewings.filter(function(x){return x.id!==id});save();renderAll();
+  },true);
+}
+function toggleViewing(id){
+  var v=(D.viewings||[]).filter(function(x){return x.id===id})[0];if(!v)return;
+  v.done=!v.done;save();renderAll();
+}
+function exportViewingsExcel(){
+  var head=['客户','房源','日期','时间','地点','状态','备注'];
+  var rows=(D.viewings||[]).slice().sort(function(a,b){return (a.date||'')<(b.date||'')?-1:1}).map(function(v){
+    return [v.clientName||'',v.listingTitle||'',v.date||'',v.time||'',v.place||'',v.done?'已带看':'待带看',v.note||''];
+  });
+  var t='<table border="1"><tr>'+head.map(function(h){return '<th style="background:#1e3b33;color:#fff">'+h+'</th>'}).join('')+'</tr>'+
+    rows.map(function(r){return '<tr>'+r.map(function(c){return '<td>'+esc(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';
+  var html='<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body>'+t+'</body></html>';
+  download('Juan的工作台_看房预约_'+toDay()+'.xls','\ufeff'+html,'application/vnd.ms-excel;charset=utf-8');
+  toast('Excel 已导出');
 }
 
 /* ==========================================================
@@ -2498,7 +2648,7 @@ function renderSource(){
 }
 /* ============ 多端同步（端到端加密 + GitHub Gist，零外部依赖） ============ */
 var SYNC_KEY='wb_dxb_sync';
-var SYNC_ARR=['tasks','ledger','clients','tpls','listings','deals','dld','growth','babyRemind','roya'];
+var SYNC_ARR=['tasks','ledger','clients','tpls','listings','deals','viewings','dld','growth','babyRemind','roya'];
 function loadSyncCfg(){try{return JSON.parse(localStorage.getItem(SYNC_KEY)||'null')||{}}catch(e){return{}}}
 function persistSyncCfg(c){try{localStorage.setItem(SYNC_KEY,JSON.stringify(c))}catch(e){}}
 var _syncCfg=loadSyncCfg();
@@ -2785,7 +2935,7 @@ async function recoverFromCloudHistory(){
   catch(e){ toast('读取 Gist 列表失败：'+_syncErrText(e)); return; }
   if(!r.ok){ toast('GitHub 返回 '+r.status+'：'+_syncErrText(new Error('HTTP '+r.status))); return; }
   var list=await r.json();
-  var keys=['tasks','ledger','clients','tpls','listings','deals','dld','growth','babyRemind'];
+  var keys=['tasks','ledger','clients','tpls','listings','deals','viewings','dld','growth','babyRemind'];
   var found=[];
   for(var i=0;i<list.length;i++){
     var g=list[i], files=(g&&g.files)||{};
