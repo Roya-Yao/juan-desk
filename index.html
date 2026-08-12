@@ -560,6 +560,7 @@ svg.chart{display:block;width:100%;height:auto;overflow:visible}
       <div><label class="f">房号</label><input id="lUnit" placeholder="例：A-1205 / TV3-1205"></div>
       <div><label class="f">卧室（房）</label><input type="number" inputmode="numeric" id="lBeds" placeholder="例：3"></div>
       <div><label class="f">卫生间（卫）</label><input type="number" inputmode="numeric" id="lBaths" placeholder="例：2"></div>
+      <div><label class="f">保姆房</label><label style="display:flex;gap:8px;align-items:center;min-height:44px"><input type="checkbox" id="lMaid"> 有保姆房</label></div>
       <div><label class="f">面积 ㎡ (sqm)</label><input type="number" inputmode="decimal" id="lAreaSqm" placeholder="例：204" oninput="syncArea('lAreaSqm','lAreaSqft',1)"></div>
       <div><label class="f">面积 sqft</label><input type="number" inputmode="decimal" id="lAreaSqft" placeholder="例：2200" oninput="syncArea('lAreaSqft','lAreaSqm',2)"></div>
       <div><label class="f">价格 AED</label><input type="number" inputmode="decimal" id="lPrice"></div>
@@ -792,6 +793,7 @@ function normalize(){
     if(o.furnish==null)o.furnish='';
     if(o.tenantName==null)o.tenantName='';
     if(o.tenantPhone==null)o.tenantPhone='';
+    if(o.maid==null)o.maid=false;
   });
 }
 function load(){
@@ -1019,7 +1021,7 @@ function seed(){
     {id:uid(),cat:'成交恭喜',title:'成交恭喜·后续跟进',body:'恭喜您成功拿下这套物业！后续过户与银行贷款我会全程跟进，相关文件清单我会发您。任何疑问随时 WhatsApp 我，祝新家顺利。',demo:true}
   ];
   D.listings=[
-    {id:uid(),project:'The Valley',phase:'PHASE 3 · 联排',unit:'TV3-1205',beds:3,baths:3,areaSqm:204,areaSqft:2200,price:2350000,rent:174000,originalPrice:2500000,floor:'12F',direction:'朝南 · 社区景观',furnish:'精装含家具',tenantName:'',tenantPhone:'',status:'可售',ownerId:'',ownerName:'The Valley PH3 业主（已授权放盘）',note:'业主诚售，可看房，报价含家具，近社区学校',isListing:'是',links:'',follows:[],createdAt:td,demo:true},
+    {id:uid(),project:'The Valley',phase:'PHASE 3 · 联排',unit:'TV3-1205',beds:3,baths:3,maid:true,areaSqm:204,areaSqft:2200,price:2350000,rent:174000,originalPrice:2500000,floor:'12F',direction:'朝南 · 社区景观',furnish:'精装含家具',tenantName:'',tenantPhone:'',status:'可售',ownerId:'',ownerName:'The Valley PH3 业主（已授权放盘）',note:'业主诚售，可看房，报价含家具，近社区学校',isListing:'是',links:'',follows:[],createdAt:td,demo:true},
     {id:uid(),project:'Damac Hills 2',phase:'Townhouse · 现房',unit:'DH2-T05',beds:2,baths:3,areaSqm:167,areaSqft:1800,price:1680000,rent:132000,originalPrice:1750000,floor:'G 层',direction:'朝北 · 花园',furnish:'空房',tenantName:'Ali Khan',tenantPhone:'+971501112233',status:'已租',ownerId:'',ownerName:'',note:'已出租，租客稳定，年化回报 7.9%',isListing:'否',links:'',follows:[],createdAt:td,demo:true}
   ];
   /* 原日程已并入 D.tasks */
@@ -2210,7 +2212,7 @@ function listingDetail(id){
     ['项目',o.project],
     ['期数 / 楼栋',o.phase],
     ['房号',o.unit],
-    ['户型',listingTypeLabel(o)],
+    ['户型',listingTypeLabel(o)+(o.maid?' + 保姆房':'')],
     ['面积',(o.areaSqm?o.areaSqm+' ㎡':'')+(o.areaSqft?(' / '+o.areaSqft+' sqft'):'')],
     ['价格',o.price?'AED '+money(o.price):''],
     ['年租',o.rent?'AED '+money(o.rent):''],
@@ -2239,25 +2241,47 @@ function listingDetail(id){
     ((o.follows||[]).length?o.follows.slice().reverse().map(function(l){return '<div class="row" style="padding:9px 0"><div class="grow"><div class="tiny muted">'+esc(l.d)+'</div><div style="font-size:14px">'+esc(l.t)+'</div></div></div>'}).join(''):'<div class="tiny muted" style="padding:8px 0">还没有跟进记录。</div>')+
     '<div class="foot"><button class="btn danger" onclick="delListing(\''+o.id+'\')">删除</button>'+
     '<button class="btn ghost" onclick="editListing(\''+o.id+'\')">编辑资料</button>'+
-    '<button class="btn" onclick="copyListingForClient(\''+o.id+'\')">'+ICON_COPY+'复制发给客户</button>'+
+    '<button class="btn" onclick="copyListingForClient(\''+o.id+'\',\'en\')">'+ICON_COPY+'Copy EN</button>'+
+    '<button class="btn ghost" onclick="copyListingForClient(\''+o.id+'\',\'zh\')">'+ICON_COPY+'复制中文</button>'+
     '<button class="btn ghost" onclick="closeMask();openMatchForListing(\''+o.id+'\')">匹配客户</button>'+
     '<button class="btn ghost" onclick="closeMask();listingFollow(\''+o.id+'\')">挂牌情况跟进</button></div>';
   $('mask').classList.add('on');
 }
-function copyListingForClient(id){
+/* 金额美式缩写：2,350,000 -> 2.35M ；174,000 -> 174K（符合海外中介习惯） */
+function fmtM(v){v=+v||0;if(!v)return '';return (Math.round(v/10000)/100)+'M';}
+function fmtK(v){v=+v||0;if(!v)return '';return Math.round(v/1000)+'K';}
+function statusEN(s){var m={'可售':'For Sale','可租':'For Rent','已售':'Sold','已租':'Rented','已下架':'Off Market'};return m[s]||s||'';}
+function enPhase(p){if(!p)return '';return String(p).replace('联排','Townhouse').replace('公寓','Apartment').replace('别墅','Villa').replace('现房','Ready');}
+function layoutEN(o){var b=+o.beds||0,w=+o.baths||0,s='';if(b)s+=b+'BR';if(w)s+=(s?' ':'')+w+'BA';if(o.maid)s+=(s?' ':'')+'+ Maid';return s||'—';}
+/* 复制给客户：lang='en' 英文（默认，给老外中介）/ 'zh' 中文（备选）。房号与成本均不出现 */
+function copyListingForClient(id,lang){
   var o=(D.listings||[]).filter(function(x){return x.id===id})[0];if(!o)return;
+  copyText(lang==='en'?copyListingEN(o):copyListingZH(o));
+}
+function copyListingEN(o){
+  var L=[];
+  L.push((o.project||'')+(o.phase?', '+enPhase(o.phase):''));
+  var st=statusEN(o.status);if(st)L.push(st);
+  var lt=layoutEN(o);if(lt&&lt!=='—')L.push(lt);
+  if(o.areaSqft)L.push(o.areaSqft+' sqft'+(o.areaSqm?(' / '+o.areaSqm+' sqm'):''));
+  else if(o.areaSqm)L.push(o.areaSqm+' sqm');
+  if(o.price)L.push('Price AED '+fmtM(o.price));
+  if(o.rent)L.push('Rent AED '+fmtK(o.rent)+' / yr');
+  if(o.originalPrice)L.push('OP AED '+fmtM(o.originalPrice));
+  return L.join('\n');
+}
+function copyListingZH(o){
   var L=[];
   L.push('【迪拜在售房源】');
   L.push('楼盘：'+(o.project||'')+(o.phase?(' · '+o.phase):''));
-  if(o.unit)L.push('房号：'+o.unit);
-  var ht=listingTypeLabel(o);if(ht)L.push('户型：'+ht);
+  var ht=listingTypeLabel(o)+(o.maid?'+保姆房':'');if(ht)L.push('户型：'+ht);
   if(o.areaSqm)L.push('面积：'+o.areaSqm+' ㎡'+(o.areaSqft?(' / '+o.areaSqft+' sqft'):''));
   else if(o.areaSqft)L.push('面积：'+o.areaSqft+' sqft');
   if(o.price)L.push('出售价：AED '+money(o.price));
   if(o.originalPrice)L.push('原价：AED '+money(o.originalPrice));
   if(o.rent)L.push('年租金：AED '+money(o.rent));
   if(o.status)L.push('状态：'+o.status);
-  copyText(L.join('\n'));
+  return L.join('\n');
 }
 function listingFollow(id){
   var o=(D.listings||[]).filter(function(x){return x.id===id})[0];if(!o)return;
@@ -2290,6 +2314,7 @@ function addListing(){
     originalPrice:parseFloat(val('lOriginalPrice'))||0,
     floor:val('lFloor'),direction:val('lDirection'),furnish:val('lFurnish'),
     tenantName:val('lTenantName'),tenantPhone:val('lTenantPhone'),
+    maid:$('lMaid')?$('lMaid').checked:false,
     status:val('lStatus')||'可售',
     isListing:val('lListing')||'否',
     ownerId:val('lOwner')||'',ownerName:ownerNameFromId(val('lOwner')),
@@ -2309,6 +2334,7 @@ function editListing(id){
     '<div><label class="f">房号</label><input id="elUnit" value="'+esc(o.unit||'')+'"></div>'+
     '<div><label class="f">卧室（房）</label><input type="number" inputmode="numeric" id="elBeds" value="'+esc(o.beds||'')+'"></div>'+
     '<div><label class="f">卫生间（卫）</label><input type="number" inputmode="numeric" id="elBaths" value="'+esc(o.baths||'')+'"></div>'+
+    '<div><label class="f">保姆房</label><label style="display:flex;gap:8px;align-items:center;min-height:44px"><input type="checkbox" id="elMaid" '+(o.maid?'checked':'')+'> 有保姆房</label></div>'+
     '<div><label class="f">面积 ㎡ (sqm)</label><input type="number" inputmode="decimal" id="elAreaSqm" value="'+esc(o.areaSqm||'')+'" oninput="syncArea(\'elAreaSqm\',\'elAreaSqft\',1)"></div>'+
     '<div><label class="f">面积 sqft</label><input type="number" inputmode="decimal" id="elAreaSqft" value="'+esc(o.areaSqft||'')+'" oninput="syncArea(\'elAreaSqft\',\'elAreaSqm\',2)"></div>'+
     '<div><label class="f">价格 AED</label><input type="number" inputmode="decimal" id="elPrice" value="'+esc(o.price||'')+'"></div>'+
@@ -2334,6 +2360,7 @@ function saveListing(id){
   o.areaSqm=parseFloat(val('elAreaSqm'))||0;o.areaSqft=parseFloat(val('elAreaSqft'))||0;o.price=parseFloat(val('elPrice'))||0;o.rent=parseFloat(val('elRent'))||0;
   o.originalPrice=parseFloat(val('elOriginalPrice'))||0;o.floor=val('elFloor');o.direction=val('elDirection');o.furnish=val('elFurnish');
   o.tenantName=val('elTenantName');o.tenantPhone=val('elTenantPhone');
+  o.maid=$('elMaid')?$('elMaid').checked:false;
   o.status=val('elStatus')||'可售';o.ownerId=val('elOwner')||'';o.ownerName=ownerNameFromId(val('elOwner'));o.note=val('elNote');
   o.isListing=val('elListing')||'是';
   o.links=val('elLinks')||'';
@@ -2402,8 +2429,8 @@ function renderListings(){
 function exportListingsExcel(){
   var all=D.listings||[];
   if(!all.length){toast('还没有房源可导出');return;}
-  var head=['项目','期数/楼栋','房号','室','卫','面积(㎡)','面积(sqft)','价格(AED)','年租(AED)','租金回报(%)','原价(AED)','楼层','朝向','装修/家具','租客姓名','租客电话','状态','是否 listing','关联业主','挂牌链接','备注','创建日期'];
-  var rows=all.map(function(o){return [o.project||'',o.phase||'',o.unit||'',o.beds||0,o.baths||0,o.areaSqm||0,o.areaSqft||0,o.price||0,o.rent||0,roi(o.price,o.rent),o.originalPrice||0,o.floor||'',o.direction||'',o.furnish||'',o.tenantName||'',o.tenantPhone||'',o.status||'',o.isListing||'否',o.ownerName||'',(o.links||'').replace(/\n/g,' '),o.note||'',o.createdAt||'']});
+  var head=['项目','期数/楼栋','房号','室','卫','保姆房','面积(㎡)','面积(sqft)','价格(AED)','年租(AED)','租金回报(%)','原价(AED)','楼层','朝向','装修/家具','租客姓名','租客电话','状态','是否 listing','关联业主','挂牌链接','备注','创建日期'];
+  var rows=all.map(function(o){return [o.project||'',o.phase||'',o.unit||'',o.beds||0,o.baths||0,(o.maid?'有':''),o.areaSqm||0,o.areaSqft||0,o.price||0,o.rent||0,roi(o.price,o.rent),o.originalPrice||0,o.floor||'',o.direction||'',o.furnish||'',o.tenantName||'',o.tenantPhone||'',o.status||'',o.isListing||'否',o.ownerName||'',(o.links||'').replace(/\n/g,' '),o.note||'',o.createdAt||'']});
   var t='<table border="1"><tr>'+head.map(function(h){return '<th style="background:#1e3b33;color:#fff">'+h+'</th>'}).join('')+'</tr>'+
     rows.map(function(r){return '<tr>'+r.map(function(c){return '<td>'+esc(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';
   var html='<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body>'+t+'</body></html>';
