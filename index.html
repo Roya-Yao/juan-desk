@@ -1575,6 +1575,12 @@ function contactBtns(c){
   if(waDig)out+='<a class="of-ico wa" href="https://wa.me/'+waDig+'" target="_blank" rel="noopener" title="WhatsApp">'+ICON_WA+'</a>';
   return out||'<span class="muted tiny">— 无电话 —</span>';
 }
+function clientAddrLine(c){
+  var u=ownerUnit(c);
+  var a=(c.addr||u||'');
+  return a?('🏠 '+esc(a)):'🏠 房号—';
+}
+
 function renderClients(){
   _dueCache=null;_dueOwnersCache=null; // 每次渲染前清空待跟进缓存，避免跟进后列表不刷新
   var q=(val('cliSearch')||'').toLowerCase(), t0=today0();
@@ -1608,15 +1614,14 @@ function renderClients(){
   var ownerFollowHtml='';
   if(CLIT==='业主'){
     var du=dueOwners(), over=du.filter(function(x){return x.d<0}).length, todayN=du.filter(function(x){return x.d===0}).length;
-    var ofRows=du.length?'<table><thead><tr><th>客户</th><th>房号</th><th>类型</th><th>委托</th><th>意向</th><th>下次跟进</th><th class="right">操作</th></tr></thead><tbody>'+
+    var ofRows=du.length?'<table><thead><tr><th>客户</th><th>类型</th><th>委托</th><th>意向</th><th>下次跟进</th><th class="right">操作</th></tr></thead><tbody>'+
       du.map(function(x){
         var c=x.c, late=x.d<0;
         var unit=ownerUnit(c);
         var intent=intentLabel(c.intent);
         return '<tr'+(late?' style="border-color:#f0c9c4;background:#fff8f7"':'')+'>'+
       '<td data-l="客户"><div style="font-size:15px">'+esc(c.name)+(c.demo?' <span class="tag">演示</span>':'')+'</div>'+
-        (c.phone?'<div class="tiny muted tap-link" onclick="phoneActions(\''+c.id+'\')">'+esc(c.phone)+ICON_PHONE+'</div>':'<div class="tiny muted">—</div>')+'<div class="tiny muted">'+(c.birth?'生日 '+cnDate(c.birth):'—')+'</div></td>'+
-          '<td data-l="房号"><span class="tiny">'+(c.addr?esc(c.addr):(unit?esc(unit):'<span class="muted">—</span>'))+'</span></td>'+
+        (c.phone?'<div class="tiny muted tap-link" onclick="phoneActions(\''+c.id+'\')">'+esc(c.phone)+ICON_PHONE+'</div>':'<div class="tiny muted">—</div>')+'<div class="tiny muted">'+clientAddrLine(c)+(c.birth?' · 生日 '+cnDate(c.birth):'')+'</div></td>'+
           '<td data-l="类型"><span class="tag '+(c.ctype==='owner'?'gold':c.ctype==='buyer'?'blue':'')+'">'+ctypeLabel(c.ctype)+'</span></td>'+
           '<td data-l="委托"><span class="tag '+intent.c+'">'+intent.t+'</span></td>'+
           '<td data-l="意向"><span class="tag '+(c.level&&c.level[0]==='A'?'gold':c.level&&c.level[0]==='D'?'ok':'blue')+'">'+esc(c.level||'—')+'</span></td>'+
@@ -1636,7 +1641,7 @@ function renderClients(){
     pageItems.map(function(o){
       var c=o.c, late=o.d<0;
       return '<tr><td data-l="客户"><div style="font-size:15px">'+esc(c.name)+(c.demo?' <span class="tag">演示</span>':'')+'</div>'+
-        (c.phone?'<div class="tiny muted tap-link" onclick="phoneActions(\''+c.id+'\')">'+esc(c.phone)+ICON_PHONE+'</div>':'<div class="tiny muted">—</div>')+'<div class="tiny muted">🏠 '+(c.addr?esc(c.addr):'房号—')+(c.birth?' · 生日 '+cnDate(c.birth):'')+'</div></td>'+
+        (c.phone?'<div class="tiny muted tap-link" onclick="phoneActions(\''+c.id+'\')">'+esc(c.phone)+ICON_PHONE+'</div>':'<div class="tiny muted">—</div>')+'<div class="tiny muted">'+clientAddrLine(c)+(c.birth?' · 生日 '+cnDate(c.birth):'')+'</div></td>'+
         '<td data-l="类型"><span class="tag '+(c.ctype==='owner'?'gold':c.ctype==='buyer'?'blue':'')+'">'+ctypeLabel(c.ctype)+'</span></td>'+
         '<td data-l="委托"><span class="tag '+intentLabel(c.intent).c+'">'+intentLabel(c.intent).t+'</span></td>'+
         '<td data-l="意向"><span class="tag '+(c.level&&c.level[0]==='A'?'gold':c.level&&c.level[0]==='D'?'ok':'blue')+'">'+esc(c.level||'—')+'</span></td>'+
