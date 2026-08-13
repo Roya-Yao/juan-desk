@@ -1249,6 +1249,35 @@ function delTask(id){
     D.tasks=D.tasks.filter(function(x){return x.id!==id});save();renderAll();
   },true);
 }
+function icsEsc(s){return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/\r?\n/g,'\\n').replace(/,/g,'\\,').replace(/;/g,'\\;');}
+function taskToCalendar(id){
+  var t=(D.tasks||[]).filter(function(x){return x.id===id})[0];if(!t)return;
+  var dt=(t.date||toDay()).replace(/-/g,'');
+  var stamp=new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z?/,'');
+  var sum=icsEsc('待办：'+(t.title||'任务'));
+  var desc=[t.type,t.place].filter(Boolean).join(' · ');
+  var head='BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//juan-desk//Task//CN\r\nCALSCALE:GREGORIAN\r\nBEGIN:VEVENT\r\nUID:'+id+'@juan-desk\r\nDTSTAMP:'+stamp+'Z\r\n';
+  var vstart,vend,alarm;
+  if(t.time&&/^\d{1,2}:\d{2}$/.test(t.time)){
+    var p=t.time.split(':');var hh=('0'+p[0]).slice(-2),mm=('0'+p[1]).slice(-2);
+    var ed=new Date(2000,0,2,parseInt(p[0],10),parseInt(p[1],10)+30,0);
+    vstart='DTSTART:'+dt+'T'+hh+mm+'00\r\n';
+    vend='DTEND:'+dt+'T'+('0'+ed.getHours()).slice(-2)+('0'+ed.getMinutes()).slice(-2)+'00\r\n';
+    alarm='BEGIN:VALARM\r\nTRIGGER:-PT15M\r\nACTION:DISPLAY\r\nDESCRIPTION:'+icsEsc('提醒：'+(t.title||'任务'))+'\r\nEND:VALARM\r\n';
+  }else{
+    var nd=addDays(t.date||toDay(),1);
+    vstart='DTSTART;VALUE=DATE:'+dt+'\r\n';
+    vend='DTEND;VALUE=DATE:'+nd.replace(/-/g,'')+'\r\n';
+    alarm='BEGIN:VALARM\r\nTRIGGER:-PT9H\r\nACTION:DISPLAY\r\nDESCRIPTION:'+icsEsc('提醒：'+(t.title||'任务'))+'\r\nEND:VALARM\r\n';
+  }
+  var ics=head+vstart+vend+'SUMMARY:'+sum+'\r\n'+(desc?'DESCRIPTION:'+icsEsc(desc)+'\r\n':'')+alarm+'END:VEVENT\r\nEND:VCALENDAR';
+  var blob=new Blob([ics],{type:'text/calendar;charset=utf-8'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;a.download='提醒-'+(t.title||'任务')+'.ics';a.setAttribute('rel','noopener');
+  document.body.appendChild(a);a.click();
+  setTimeout(function(){try{document.body.removeChild(a);}catch(e){}URL.revokeObjectURL(url);},1500);
+  toast('已生成日历提醒，打开文件即可加入日历（到点会响铃/振动）');
+}
 function editTask(id){
   var t=(D.tasks||[]).filter(function(x){return x.id===id})[0];if(!t)return;
   $('modal').innerHTML='<h3>编辑任务</h3><div style="margin-top:14px"><label class="f">事项</label><input id="ekT" value="'+esc(t.title)+'">'+
@@ -1318,7 +1347,8 @@ function renderTasks(){
       '<span'+(late?' class="tag late"':'')+'>'+esc(x.date||'')+(x.time?' '+esc(x.time):'')+(x.done?'':' · '+relDay(x.date))+'</span>'+
       (x.place?'<span>'+esc(x.place)+'</span>':'')+
       (x.demo?'<span class="tag">演示</span>':'')+'</div></div>'+
-      '<div class="actions"><button class="link" onclick="editTask(\''+x.id+'\')">编辑</button>'+
+      '<div class="actions"><button class="link" onclick="taskToCalendar(\''+x.id+'\')">日历提醒</button>'+
+      '<button class="link" onclick="editTask(\''+x.id+'\')">编辑</button>'+
       '<button class="link red" onclick="delTask(\''+x.id+'\')">删除</button></div></div>';
   }).join(''):'<div class="empty">'+icon('<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>')+'这里还没有任务。</div>';
 }
