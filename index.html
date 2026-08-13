@@ -441,7 +441,7 @@ svg.chart{display:block;width:100%;height:auto;overflow:visible}
   <div class="page-head">
     <div><div class="eyebrow">Tasks &amp; Schedule</div><h2 class="page">任务与日程</h2>
     <div class="page-sub">待办与日程已合并：可设优先级，也可设日期、时间与地点，按日期自动分组；逾期标红，昨天没做完的自动顺延到今天。</div></div>
-    <div class="reminder-bar"><button id="reminderToggle" class="btn ghost sm" onclick="reminderToggle()">🔕 提醒未开</button><span id="reminderHint" class="tiny muted"></span></div>
+    <div class="reminder-bar"><button id="reminderToggle" class="btn ghost sm" onclick="reminderToggle()">🔕 提醒未开</button><button class="btn ghost sm" onclick="syncToCalendar(false)">🔄 同步到日历</button><span id="reminderHint" class="tiny muted"></span></div>
     <div class="btn-row"><button class="btn ghost sm" onclick="clearDoneTasks()">清除已完成</button><button class="btn ghost sm" onclick="bulkRescheduleModal()">批量改期已延误</button></div>
   </div>
   <div class="chips" id="taskFilter" style="margin-bottom:14px"></div>
@@ -1242,7 +1242,7 @@ function taskAddModal(){
 function addTask(){
   var t=val('tkTitle');if(!t){toast('先写一下事项内容');return}
   D.tasks.unshift({id:uid(),title:t,date:val('tkDate')||toDay(),time:val('tkTime'),pri:val('tkPri'),type:val('tkType'),place:val('tkPlace'),done:false,createdAt:toDay()});
-  counted();if(save()){closeMask();renderAll();toast('已添加')}
+  counted();if(save()){closeMask();renderAll();toast('已添加');autoCalSync();}
 }
 function doneTask(id){
   var t=(D.tasks||[]).filter(function(x){return x.id===id})[0];if(!t)return;
@@ -1250,7 +1250,7 @@ function doneTask(id){
 }
 function delTask(id){
   confirmBox('删除任务','删除后不可恢复。','删除',function(){
-    D.tasks=D.tasks.filter(function(x){return x.id!==id});save();renderAll();
+    D.tasks=D.tasks.filter(function(x){return x.id!==id});save();renderAll();autoCalSync();
   },true);
 }
 function editTask(id){
@@ -1268,13 +1268,13 @@ function editTask(id){
 function saveTaskEdit(id){
   var t=(D.tasks||[]).filter(function(x){return x.id===id})[0];if(!t)return;
   t.title=val('ekT')||t.title;t.date=val('ekD')||t.date;t.time=val('ekTime');t.pri=val('ekP');t.type=val('ekType');t.place=val('ekPlace');
-  save();closeMask();renderAll();toast('已更新');
+  save();closeMask();renderAll();toast('已更新');autoCalSync();
 }
 function clearDoneTasks(){
   var n=(D.tasks||[]).filter(function(x){return x.done}).length;
   if(!n){toast('没有已完成的任务');return}
   confirmBox('清除已完成','将删除 '+n+' 条已完成任务。','清除',function(){
-    D.tasks=D.tasks.filter(function(x){return !x.done});save();renderAll();
+    D.tasks=D.tasks.filter(function(x){return !x.done});save();renderAll();autoCalSync();
   },true);
 }
 function bulkRescheduleModal(){
@@ -1292,7 +1292,7 @@ function doBulkReschedule(d){
   (D.tasks||[]).forEach(function(t){
     if(!t.done&&t.date&&diffDays(parseDay(t.date),t0)<0){t.date=d;n++;}
   });
-  if(n){save();closeMask();renderAll();toast('已将 '+n+' 项逾期待办改期到 '+d);}
+  if(n){save();closeMask();renderAll();toast('已将 '+n+' 项逾期待办改期到 '+d);autoCalSync();}
   else toast('没有需要改期的项');
 }
 /* ==========================================================
@@ -1409,6 +1409,76 @@ function renderTaskHeader(){
     ? (perm==='granted'?'任务到点自动弹通知并响铃，刷新后自动恢复':'已开启，但浏览器未授权通知，将以声音+页面提示提醒')
     : '开启后任务到点自动提醒，无需逐条设置';
 }
+/* ==========================================================
+   日历订阅（webcal / 公开 Gist，脱敏）
+   点「同步到日历」首次生成订阅链接（建在你自己的公开 Gist），手机/电脑自带
+   日历订阅后关工作台也响。事件只含任务类型（脱敏），不含客户名/地址/电话。
+   之后每次改任务自动静默同步（autoCalSync）。
+   ========================================================== */
+function icsEsc(s){return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/\r?\n/g,'\\n').replace(/,/g,'\\,').replace(/;/g,'\\;');}
+function tasksToICS(){
+  var lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//juan-desk//Tasks//CN','CALSCALE:GREGORIAN','X-WR-CALNAME:小娟的待办（脱敏）'];
+  var stamp=new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z?/,'')+'Z';
+  (D.tasks||[]).forEach(function(t){
+    if(t.done)return;
+    var dt=(t.date||toDay()).replace(/-/g,'');
+    var summary=icsEsc((t.type&&t.type!=='其他')?t.type:'待办提醒');
+    var uid=t.id+'@juan-desk';
+    var vstart,vend,alarm;
+    if(t.time&&/^\d{1,2}:\d{2}$/.test(t.time)){
+      var pp=t.time.split(':');var hh=('0'+pp[0]).slice(-2),mm=('0'+pp[1]).slice(-2);
+      var ed=new Date(2000,0,2,parseInt(pp[0],10),parseInt(pp[1],10)+30,0);
+      vstart='DTSTART:'+dt+'T'+hh+mm+'00';
+      vend='DTEND:'+dt+'T'+('0'+ed.getHours()).slice(-2)+('0'+ed.getMinutes()).slice(-2)+'00';
+      alarm='BEGIN:VALARM\r\nTRIGGER:-PT15M\r\nACTION:DISPLAY\r\nDESCRIPTION:待办提醒：'+summary+'\r\nEND:VALARM';
+    }else{
+      vstart='DTSTART:'+dt+'T090000';
+      vend='DTEND:'+dt+'T093000';
+      alarm='BEGIN:VALARM\r\nTRIGGER:-PT15M\r\nACTION:DISPLAY\r\nDESCRIPTION:待办提醒：'+summary+'\r\nEND:VALARM';
+    }
+    lines.push('BEGIN:VEVENT','UID:'+uid,'DTSTAMP:'+stamp,vstart,vend,'SUMMARY:'+summary,alarm,'END:VEVENT');
+  });
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n');
+}
+function calSubUrl(){return 'https://gist.githubusercontent.com/'+(D.calUser||'')+'/'+(D.calGistId||'')+'/raw/tasks.ics';}
+function copyText(s){try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(s);toast('已复制订阅链接');}else{toast('请长按链接复制');}}catch(e){toast('请长按链接复制');}}
+function exportICSFile(){var ics=tasksToICS();download('小娟的待办_脱敏.ics',ics,'text/calendar;charset=utf-8');toast('已导出 .ics，可手动导入日历');}
+function showCalSub(){
+  if(!D.calGistId){toast('日历尚未生成，请稍候');return;}
+  var url=calSubUrl();
+  var h='<h3>📅 日历订阅链接（一次性添加）</h3>'+
+    '<div class="muted tiny" style="margin:8px 0 12px;line-height:1.85">把下面的链接<b>一次性</b>添加到你手机/电脑的自带日历（菜单里找「订阅 / 订阅 URL / 从网络添加」）。添加后，<b>关掉工作台也会到点响</b>。任务有变动时点「同步到日历」刷新它（手机日历通常几小时刷新一次）。链接里<b>不含客户隐私</b>，只有任务类型。</div>'+
+    '<div style="font:600 13px/1.6 monospace;background:#f6f7f8;border:1px solid #e4e7ea;border-radius:10px;padding:12px 14px;word-break:break-all;color:#1a1a1a">'+esc(url)+'</div>'+
+    '<div class="muted tiny" style="margin:8px 0 12px">💡 若日历 App 提示不支持，可把链接开头的 <b>https</b> 改成 <b>webcal</b> 再试。也可点「导出 .ics 文件」手动导入。</div>'+
+    '<div class="foot"><button class="btn ghost" onclick="copyText(\''+url+'\')">复制链接</button><button class="btn ghost" onclick="exportICSFile()">导出 .ics 文件</button><button class="btn" onclick="closeMask()">知道了</button></div>';
+  $('modal').innerHTML=h;$('mask').classList.add('on');
+}
+function showCalSubFallback(){
+  var h='<h3>📅 同步到日历</h3>'+
+    '<div class="muted tiny" style="margin:8px 0 12px;line-height:1.85">自动同步需要先开启「数据同步」（用你的 GitHub Token 建一个公开日历 Gist，里面只含脱敏的任务类型）。你也可以先<b>导出 .ics 文件</b>手动导入手机/电脑日历：</div>'+
+    '<div class="foot"><button class="btn ghost" onclick="exportICSFile()">导出 .ics 文件</button><button class="btn ghost" onclick="openSync()">去配置同步</button><button class="btn" onclick="closeMask()">稍后</button></div>';
+  $('modal').innerHTML=h;$('mask').classList.add('on');
+}
+async function syncToCalendar(silent){
+  var tk=(_syncCfg&&_syncCfg.token);
+  if(!tk){ if(!silent)showCalSubFallback(); return; }
+  var ics=tasksToICS();
+  var headers={'Authorization':'Bearer '+tk,'Accept':'application/vnd.github+json','Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28'};
+  try{
+    if(D.calGistId){
+      var r=await fetch('https://api.github.com/gists/'+D.calGistId,{method:'PATCH',headers:headers,body:JSON.stringify({files:{'tasks.ics':{content:ics}}})});
+      if(!r.ok){ if(!silent)toast('日历同步失败：'+r.status); return; }
+      if(!silent)showCalSub();
+      return;
+    }
+    var c=await fetch('https://api.github.com/gists',{method:'POST',headers:headers,body:JSON.stringify({description:'juan-desk 待办日历（脱敏）',public:true,files:{'tasks.ics':{content:ics}}})});
+    if(!c.ok){ if(!silent)toast('日历同步失败：'+c.status); return; }
+    var cj=await c.json(); D.calGistId=cj.id; D.calUser=(cj.owner&&cj.owner.login)||''; save();
+    if(!silent)showCalSub();
+  }catch(e){ if(!silent)toast('日历同步失败：'+((e&&e.message)||e)); }
+}
+function autoCalSync(){ if(D.calGistId&&_syncCfg&&_syncCfg.token) syncToCalendar(true); }
 function renderTasks(){
   renderTaskHeader();startReminders();
   renderTaskFilter();
