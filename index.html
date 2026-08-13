@@ -2730,7 +2730,6 @@ function comboInit(cfg){
       var f=cfg.fmt(it);
       return '<div class="combo-it" data-id="'+esc(it.id)+'"'+(f.title?' title="'+esc(f.title)+'"':'')+'><b>'+esc(f.label)+'</b>'+(f.sub?' <span class="muted tiny">'+esc(f.sub)+'</span>':'')+'</div>';
     }).join('') : '<div class="combo-empty">无匹配</div>';
-    pop.style.display='block';
     Array.prototype.forEach.call(pop.querySelectorAll('.combo-it'),function(el){
       el.onmousedown=function(e){e.preventDefault();};
       el.onclick=function(){
@@ -2742,11 +2741,18 @@ function comboInit(cfg){
       };
     });
   }
-  q.oninput=render; q.onfocus=function(){render();};
-  q.onblur=function(){ setTimeout(function(){pop.style.display='none';},160); };
+  function open(){
+    // 展开当前下拉，同时收起页面上其他 combo-pop（避免两个搜索框同时展开）
+    Array.prototype.forEach.call(document.querySelectorAll('.combo-pop'),function(p){ if(p!==pop)p.style.display='none'; });
+    render(); pop.style.display='block';
+  }
+  function close(){ pop.style.display='none'; }
+  q.oninput=open; q.onfocus=function(){open();};
+  q.onblur=function(){ setTimeout(function(){close();},160); };
   q.onkeydown=function(e){ if(e.key==='Enter'){ var first=pop.querySelector('.combo-it'); if(first)first.click(); } };
   if(hid.value){ var it=cfg.getItems().filter(function(x){return String(x.id)===String(hid.value)})[0]; if(it){var f=cfg.fmt(it); q.value=f.label+(f.sub?(' · '+f.sub):'');} }
-  render();
+  // 默认不展开，只回填已选值；需要用户点击搜索框才出现列表
+  render(); pop.style.display='none';
 }
 
 function renderViewingPhone(){
