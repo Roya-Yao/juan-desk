@@ -1173,7 +1173,7 @@ function renderToday(){
   var cl=(D.clients||[]).length, ev=(D.tasks||[]).filter(function(e){return !e.done&&e.date&&diffDays(parseDay(e.date),today0())>=0}).length;
   $('todayMetrics').innerHTML=
     mtr('未完成任务',un+' 项',(D.tasks||[]).filter(function(t){return !t.done&&t.date&&diffDays(parseDay(t.date||toDay()),today0())<0}).length+' 项已逾期')+
-    mtr('客户总数',cl+' 位',dueClients().length+' 位客源今天该跟进')+
+    mtr('客户总数',cl+' 位',dueClients().length+' 位客户今天该跟进')+
     mtr('本月支出','AED '+money(b.used),b.budget?('预算 '+money(b.budget)+'，'+(b.used>b.budget?'已超支':'剩余 '+money(b.budget-b.used))):'未设置预算');
 
   var m=monthAgg(toMonth(toDay()));
@@ -1515,7 +1515,6 @@ function dueClients(){
   if(_dueCache&&_dueDay===td)return _dueCache;
   var t0=today0(),out=[];
   (D.clients||[]).forEach(function(c){
-    if(c.ctype==='owner')return;
     if(c.level&&c.level.indexOf('D')===0&&(c.stage||0)>=LADDER.length)return;
     var n=nextFollow(c);
     if(diffDays(parseDay(n.date),t0)<=0)out.push({c:c,date:n.date,label:n.label,d:diffDays(parseDay(n.date),t0)});
@@ -1593,6 +1592,7 @@ function clientDetail(id){
   var rows=[['客户类型',ctypeLabel(c.ctype)],['委托状态',intentLabel(c.intent).t],['电话',c.phone],['微信号',c.wx],['邮箱',c.email],['WhatsApp',c.whatsapp],['房源地址/房号',c.addr],['实际居住地址',c.homeAddr],['生日',c.birth?c.birth+'（'+cnDate(c.birth)+'）':''],['意向等级',c.level],['来源',c.src],['首次联系',c.first],['跟进节点',n.label+' · '+n.date+(late?'（已延误）':'')]];
   $('modal').innerHTML='<h3>'+esc(c.name)+'</h3>'+
     '<div style="margin-top:10px">'+rows.map(function(r){var v=r[1];if(!v)return '';var tap=(r[0]==='电话'||r[0]==='WhatsApp')?' onclick="phoneActions(\''+c.id+'\')" style="cursor:pointer"':'';var col=tap?'color:var(--blue);text-decoration:underline;text-underline-offset:2px':'';return '<div class="row" style="padding:8px 0"><div class="grow tiny muted">'+esc(r[0])+'</div><div'+tap+' style="text-align:right;font-size:14px;'+col+'">'+esc(v)+(tap?ICON_PHONE:'')+'</div></div>';}).join('')+'</div>'+
+    (function(){var g=clientGroupOf(c);if(!g)return '';return '<div style="margin:12px 0 0;padding:12px 14px;background:#f3f8f5;border-radius:6px;font-size:13.5px;display:flex;align-items:center;justify-content:space-between;gap:10px"><div>当前归类：<span class="tag '+(g.cls||'')+'">'+g.label+'</span></div><button class="btn sm" onclick="jumpToGroup(\''+g.f+'\')">在客户列表查看 ›</button></div>';})()+
     (needs.length?'<div style="margin-top:12px;padding:12px 14px;background:#eef4f1;border-radius:6px;font-size:13.5px;line-height:1.75"><div class="tiny muted" style="margin-bottom:4px">购房 / 租房需求</div>'+needs.join(' · ')+'</div>':'')+
     (c.note?'<div style="margin-top:12px;padding:12px 14px;background:#faf7f1;border-radius:6px;font-size:13.5px;line-height:1.75">'+esc(c.note)+'</div>':'')+
     '<h3 class="sec" style="margin:18px 0 4px;font-size:16px">跟进记录 '+((c.logs||[]).length)+' 次</h3>'+
@@ -1607,6 +1607,14 @@ function clientDetail(id){
     '<button class="btn" onclick="closeMask();followModal(\''+c.id+'\')">记录跟进</button></div>';
   $('mask').classList.add('on');
 }
+function clientGroupOf(c){
+  if(c.ctype==='owner'&&c.intent==='willing')return {f:'待签约委托',label:'待签约委托',cls:'gold'};
+  var n=nextFollow(c), d=diffDays(parseDay(n.date),today0());
+  if(d<0)return {f:'已延误',label:'已延误',cls:'late'};
+  if(d===0)return {f:'今天该跟进',label:'今天该跟进',cls:''};
+  return null;
+}
+function jumpToGroup(f){ CLIF=f; CLIT='全部'; try{closeMask();}catch(e){} try{renderClients();}catch(e){} }
 function editClient(id){
   var c=(D.clients||[]).filter(function(x){return x.id===id})[0];if(!c)return;
   $('modal').innerHTML='<h3>编辑客户</h3><div class="form" style="margin-top:12px">'+
@@ -1684,11 +1692,13 @@ function renderClients(){
       if(CLIF==='已延误'&&o.d>=0)return false;
       if(CLIF==='待签约委托'&&!(o.c.ctype==='owner'&&o.c.intent==='willing'))return false;
       if(CLIF.length>1&&'ABCD'.indexOf(CLIF[0])>=0&&CLIF.indexOf(' ')>0&&o.c.level!==CLIF)return false;
-      if(CLIT==='客源'){ if(!(o.c.ctype==='buyer'||o.c.ctype==='lead'))return false; }
-      else if(CLIT==='业主'){ if(o.c.ctype!=='owner')return false; }
-      else if(CLIT==='中介合作'){ if(o.c.ctype!=='agent')return false; }
-      else if(CLIT==='租客'){ if(o.c.ctype!=='tenant')return false; }
-      else if(CLIT!=='全部'){ if((o.c.ctype||'buyer')!==CLIT)return false; }
+      if(CLIF!=='今天该跟进'&&CLIF!=='已延误'){
+        if(CLIT==='客源'){ if(!(o.c.ctype==='buyer'||o.c.ctype==='lead'))return false; }
+        else if(CLIT==='业主'){ if(o.c.ctype!=='owner')return false; }
+        else if(CLIT==='中介合作'){ if(o.c.ctype!=='agent')return false; }
+        else if(CLIT==='租客'){ if(o.c.ctype!=='tenant')return false; }
+        else if(CLIT!=='全部'){ if((o.c.ctype||'buyer')!==CLIT)return false; }
+      }
       if(!q)return true;
       return (o.c.name+' '+(o.c.phone||'')+' '+(o.c.addr||'')+' '+(o.c.note||'')+' '+(o.c.wx||'')+' '+(o.c.email||'')+' '+(o.c.whatsapp||'')).toLowerCase().indexOf(q)>=0;
     }).sort(function(a,b){return a.d-b.d});
