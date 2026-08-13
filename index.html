@@ -1645,16 +1645,16 @@ function clientDetail(id){
 function clientNeedFields(c){
   return '<div class="form" style="margin:0">'+
     '<div><label class="f">意向</label><select id="ncNeedStatus" onchange="clientNeedSave(\''+c.id+'\')"><option '+(c.needStatus==='不限'?'selected':'')+'>不限</option><option '+(c.needStatus==='可售'?'selected':'')+'>可售</option><option '+(c.needStatus==='可租'?'selected':'')+'>可租</option></select></div>'+
-    '<div><label class="f">预算下限 AED</label><input type="number" inputmode="decimal" id="ncBudgetMin" value="'+esc(c.budgetMin||'')+'" onchange="clientNeedSave(\''+c.id+'\')"></div>'+
-    '<div><label class="f">预算上限 AED</label><input type="number" inputmode="decimal" id="ncBudgetMax" value="'+esc(c.budgetMax||'')+'" onchange="clientNeedSave(\''+c.id+'\')"></div>'+
-    '<div><label class="f">卧室(室)</label><input type="number" inputmode="numeric" id="ncNeedBeds" value="'+esc(c.needBeds||'')+'" onchange="clientNeedSave(\''+c.id+'\')"></div>'+
-    '<div><label class="f">卫生间(卫)</label><input type="number" inputmode="numeric" id="ncNeedBaths" value="'+esc(c.needBaths||'')+'" onchange="clientNeedSave(\''+c.id+'\')"></div>'+
-    '<div><label class="f">面积下限 ㎡</label><input type="number" inputmode="decimal" id="ncNeedArea" value="'+esc(c.needArea||'')+'" onchange="clientNeedSave(\''+c.id+'\')"></div>'+
-    '<div class="wide"><label class="f">区域偏好</label><input id="ncNeedRegion" value="'+esc(c.needRegion||'')+'" onchange="clientNeedSave(\''+c.id+'\')"></div>'+
-    '<div class="wide"><label class="f">备注</label><textarea id="ncNote" placeholder="客户特殊要求、沟通要点…" onchange="clientNeedSave(\''+c.id+'\')">'+esc(c.note||'')+'</textarea></div>'+
+    '<div><label class="f">预算下限 AED</label><input type="number" inputmode="decimal" id="ncBudgetMin" value="'+esc(c.budgetMin||'')+'" oninput="clientNeedSave(\''+c.id+'\',true)" onchange="clientNeedSave(\''+c.id+'\')"></div>'+
+    '<div><label class="f">预算上限 AED</label><input type="number" inputmode="decimal" id="ncBudgetMax" value="'+esc(c.budgetMax||'')+'" oninput="clientNeedSave(\''+c.id+'\',true)" onchange="clientNeedSave(\''+c.id+'\')"></div>'+
+    '<div><label class="f">卧室(室)</label><input type="number" inputmode="numeric" id="ncNeedBeds" value="'+esc(c.needBeds||'')+'" oninput="clientNeedSave(\''+c.id+'\',true)" onchange="clientNeedSave(\''+c.id+'\')"></div>'+
+    '<div><label class="f">卫生间(卫)</label><input type="number" inputmode="numeric" id="ncNeedBaths" value="'+esc(c.needBaths||'')+'" oninput="clientNeedSave(\''+c.id+'\',true)" onchange="clientNeedSave(\''+c.id+'\')"></div>'+
+    '<div><label class="f">面积下限 ㎡</label><input type="number" inputmode="decimal" id="ncNeedArea" value="'+esc(c.needArea||'')+'" oninput="clientNeedSave(\''+c.id+'\',true)" onchange="clientNeedSave(\''+c.id+'\')"></div>'+
+    '<div class="wide"><label class="f">区域偏好</label><input id="ncNeedRegion" value="'+esc(c.needRegion||'')+'" oninput="clientNeedSave(\''+c.id+'\',true)" onchange="clientNeedSave(\''+c.id+'\')"></div>'+
+    '<div class="wide"><label class="f">备注</label><textarea id="ncNote" placeholder="客户特殊要求、沟通要点…" oninput="clientNeedSave(\''+c.id+'\',true)" onchange="clientNeedSave(\''+c.id+'\')">'+esc(c.note||'')+'</textarea></div>'+
     '</div>';
 }
-function clientNeedSave(id){
+function clientNeedSave(id, silent){
   var c=(D.clients||[]).filter(function(x){return x.id===id})[0];if(!c)return;
   c.needStatus=val('ncNeedStatus')||'不限';
   c.budgetMin=parseFloat(val('ncBudgetMin'))||0;
@@ -1664,7 +1664,8 @@ function clientNeedSave(id){
   c.needArea=parseFloat(val('ncNeedArea'))||0;
   c.needRegion=val('ncNeedRegion')||'';
   c.note=val('ncNote')||'';
-  save();toast('已保存需求 / 备注');
+  save();
+  if(!silent)toast('已保存需求 / 备注');
 }
 function clientGroupOf(c){
   if(c.ctype==='owner'&&c.intent==='willing')return {f:'待签约委托',label:'待签约委托',cls:'gold'};
