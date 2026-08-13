@@ -2377,14 +2377,21 @@ function delListing(id){
 }
 function clientToListing(id){
   var c=(D.clients||[]).filter(function(x){return x.id===id})[0];if(!c)return;
+  // 防重复：同业主 + 同房号 已转过 → 直接打开那条，不再新建
+  var exist=(D.listings||[]).filter(function(o){return o.ownerId===c.id&&o.unit===(c.addr||'')})[0];
+  if(exist){closeMask();listingDetail(exist.id);toast('该房号已转过房源，已为你打开');return;}
   closeMask();
   if(VIEW!=='listings'){VIEW='listings';NAV.forEach(function(v){var e=$('v-'+v.id);if(e)e.classList.toggle('on',v.id==='listings')});renderNav();}
   var sel=$('lOwner');if(sel){sel.innerHTML=listingOwnerOptions(c.id);sel.value=c.id;}
   toggleHide('listForm');
-  setv('lProject',(c.note&&/the valley/i.test(c.note))?'The Valley':'');
+  // 房号：取自客户「房源地址/房号」（如 TV EDEN-V-315）
+  setv('lUnit',c.addr||'');
+  // 项目：从 房号/来源/备注 简单识别 The Valley 等
+  var blob=((c.addr||'')+' '+(c.src||'')+' '+(c.note||'')).toLowerCase();
+  setv('lProject',/valley/.test(blob)?'The Valley':'');
   setv('lNote',(c.name+'：'+(c.note||'')));
-  var p=$('lProject');if(p)p.focus();
-  toast('已为该客户预填房源，补全项目与价格即可保存');
+  var u=$('lUnit');if(u)u.focus();
+  toast('已预填房号与业主，补全项目/价格即可保存');
 }
 /* ---------- 渲染 ---------- */
 function renderListings(){
