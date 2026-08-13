@@ -495,7 +495,7 @@ svg.chart{display:block;width:100%;height:auto;overflow:visible}
 <!-- ============ 客户 ============ -->
 <section class="view" id="v-client">
   <div class="page-head">
-    <div><div class="eyebrow">CRM</div><h2 class="page">销售客户跟踪</h2>
+    <div><div class="eyebrow">CRM</div><h2 class="page">客户跟踪</h2>
     <div class="page-sub">采用销售行业经典的「1-3-7-15-30 跟进法则」：首访后第 1 / 3 / 7 / 15 / 30 天递进触达，之后双月·季度·半年·年度维护；到期自动进入「今天要处理」。</div></div>
     <div class="btn-row"><button class="btn gold" onclick="toggleHide('cliForm')">+ 新增客户</button><button class="btn ghost" onclick="bulkClientModal()">批量录入</button><button class="btn ghost" onclick="mergeClientsModal()">批量合并导入</button><button class="btn ghost sm" onclick="exportClientsExcel()">导出 Excel</button></div>
   </div>
@@ -1622,23 +1622,16 @@ function snoozeClient(id){
 function clientDetail(id){
   var c=(D.clients||[]).filter(function(x){return x.id===id})[0];if(!c)return;
   var n=nextFollow(c), late=diffDays(parseDay(n.date),today0())<0;
-  var needs=[];
-  if(c.needStatus&&c.needStatus!=='不限')needs.push(c.needStatus);
-  if(c.budgetMin||c.budgetMax)needs.push('预算 '+(c.budgetMin?money(c.budgetMin):'—')+'–'+(c.budgetMax?money(c.budgetMax):'∞'));
-  if(c.needBeds||c.needBaths)needs.push('户型 '+huxingLabel(c.needBeds,c.needBaths));
-  if(c.needArea)needs.push('面积≥'+c.needArea+'㎡');
-  if(c.needRegion)needs.push('区域 '+c.needRegion);
   var rows=[['客户类型',ctypeLabel(c.ctype)],['委托状态',intentLabel(c.intent).t],['电话',c.phone],['微信号',c.wx],['邮箱',c.email],['WhatsApp',c.whatsapp],['房源地址/房号',c.addr],['实际居住地址',c.homeAddr],['生日',c.birth?c.birth+'（'+cnDate(c.birth)+'）':''],['意向等级',c.level],['来源',c.src],['首次联系',c.first],['跟进节点',n.label+' · '+n.date+(late?'（已延误）':'')]];
   var infoRows=rows.map(function(r){var v=r[1];if(!v)return '';var tap=(r[0]==='电话'||r[0]==='WhatsApp');return '<div class="lab">'+esc(r[0])+'</div><div class="val'+(tap?' tap':'')+'"'+(tap?' onclick="phoneActions(\''+c.id+'\')"':'')+'>'+esc(v)+(tap?ICON_PHONE:'')+'</div>';}).join('');
   var group=(function(){var g=clientGroupOf(c);if(!g)return '';return '<div style="margin:10px 0 0;padding:10px 12px;background:#f3f8f5;border-radius:6px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:10px"><div>当前归类：<span class="tag '+(g.cls||'')+'">'+g.label+'</span></div><button class="btn sm" onclick="jumpToGroup(\''+g.f+'\')">在客户列表查看 ›</button></div>';})();
-  var needsBlock=(needs.length||c.note)?('<div class="section-body">'+(needs.length?'<div style="margin-bottom:10px"><div class="tiny muted" style="margin-bottom:3px">购房 / 租房需求</div><div style="font-size:13.5px;line-height:1.7">'+needs.join(' · ')+'</div></div>':'')+(c.note?'<div style="font-size:13.5px;line-height:1.7;padding-top:8px;border-top:1px solid var(--line)">'+esc(c.note)+'</div>':'')+'</div>'):'';
   var logBody=((c.logs||[]).length?c.logs.slice().reverse().map(function(l){return '<div class="row" style="padding:8px 0"><div class="grow"><div class="tiny muted">'+esc(l.d)+'</div><div style="font-size:14px">'+esc(l.t)+'</div></div></div>'}).join(''):'<div class="tiny muted" style="padding:4px 0">还没有沟通记录。</div>');
   var viewingBody='<div style="margin-bottom:10px"><button class="btn sm" onclick="newViewing(\''+c.id+'\')">＋ 登记带看</button></div>'+clientViewingCompare(c.id);
   var followAndViewBody='<div class="section-body"><h3 class="sec">沟通记录 '+((c.logs||[]).length)+' 次</h3>'+logBody+'<h3 class="sec" style="margin-top:14px">看房对比</h3>'+viewingBody+'</div>';
   $('modal').innerHTML='<h3>'+esc(c.name)+'</h3>'+
     '<div class="client-info-grid">'+infoRows+'</div>'+
     group+
-    (needsBlock?'<details class="client-section" open><summary><span>需求 / 备注</span><span class="sec-actions"><span class="link" onclick="event.stopPropagation();editClient(\''+c.id+'\')">编辑</span></span></summary>'+needsBlock+'</details>':'')+
+    '<details class="client-section" open><summary><span>需求 / 备注</span></summary><div class="section-body">'+clientNeedFields(c)+'</div></details>'+
     '<div class="client-quick-actions">'+
     '<button class="btn follow" onclick="closeMask();followModal(\''+c.id+'\')">记录跟进</button>'+
     '<button class="btn convert" onclick="clientToListing(\''+c.id+'\')">转为房源</button>'+
@@ -1648,6 +1641,30 @@ function clientDetail(id){
     '<details class="client-section"><summary>跟进与带看</summary>'+followAndViewBody+'</details>'+
     '<div class="client-delete"><button class="btn danger" onclick="delClient(\''+c.id+'\')">删除该客户</button></div>';
   $('mask').classList.add('on');
+}
+function clientNeedFields(c){
+  return '<div class="form" style="margin:0">'+
+    '<div><label class="f">意向</label><select id="ncNeedStatus" onchange="clientNeedSave(\''+c.id+'\')"><option '+(c.needStatus==='不限'?'selected':'')+'>不限</option><option '+(c.needStatus==='可售'?'selected':'')+'>可售</option><option '+(c.needStatus==='可租'?'selected':'')+'>可租</option></select></div>'+
+    '<div><label class="f">预算下限 AED</label><input type="number" inputmode="decimal" id="ncBudgetMin" value="'+esc(c.budgetMin||'')+'" onchange="clientNeedSave(\''+c.id+'\')"></div>'+
+    '<div><label class="f">预算上限 AED</label><input type="number" inputmode="decimal" id="ncBudgetMax" value="'+esc(c.budgetMax||'')+'" onchange="clientNeedSave(\''+c.id+'\')"></div>'+
+    '<div><label class="f">卧室(室)</label><input type="number" inputmode="numeric" id="ncNeedBeds" value="'+esc(c.needBeds||'')+'" onchange="clientNeedSave(\''+c.id+'\')"></div>'+
+    '<div><label class="f">卫生间(卫)</label><input type="number" inputmode="numeric" id="ncNeedBaths" value="'+esc(c.needBaths||'')+'" onchange="clientNeedSave(\''+c.id+'\')"></div>'+
+    '<div><label class="f">面积下限 ㎡</label><input type="number" inputmode="decimal" id="ncNeedArea" value="'+esc(c.needArea||'')+'" onchange="clientNeedSave(\''+c.id+'\')"></div>'+
+    '<div class="wide"><label class="f">区域偏好</label><input id="ncNeedRegion" value="'+esc(c.needRegion||'')+'" onchange="clientNeedSave(\''+c.id+'\')"></div>'+
+    '<div class="wide"><label class="f">备注</label><textarea id="ncNote" placeholder="客户特殊要求、沟通要点…" onchange="clientNeedSave(\''+c.id+'\')">'+esc(c.note||'')+'</textarea></div>'+
+    '</div>';
+}
+function clientNeedSave(id){
+  var c=(D.clients||[]).filter(function(x){return x.id===id})[0];if(!c)return;
+  c.needStatus=val('ncNeedStatus')||'不限';
+  c.budgetMin=parseFloat(val('ncBudgetMin'))||0;
+  c.budgetMax=parseFloat(val('ncBudgetMax'))||0;
+  c.needBeds=parseInt(val('ncNeedBeds'),10)||0;
+  c.needBaths=parseInt(val('ncNeedBaths'),10)||0;
+  c.needArea=parseFloat(val('ncNeedArea'))||0;
+  c.needRegion=val('ncNeedRegion')||'';
+  c.note=val('ncNote')||'';
+  save();toast('已保存需求 / 备注');
 }
 function clientGroupOf(c){
   if(c.ctype==='owner'&&c.intent==='willing')return {f:'待签约委托',label:'待签约委托',cls:'gold'};
