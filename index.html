@@ -266,17 +266,23 @@ svg.chart{display:block;width:100%;height:auto;overflow:visible}
 .client-info-grid .lab{color:var(--ink2);font-size:12.5px;padding:4px 0}
 .client-info-grid .val{padding:4px 0;text-align:right;word-break:break-word}
 .client-info-grid .val.tap{color:var(--blue);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
-.client-quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0 6px}
-.client-quick-actions .btn{min-height:44px;padding:8px 10px;font-size:13.5px}
-.client-quick-actions .btn:first-child{grid-column:1/-1}
-.client-quick-actions .btn.danger{grid-column:1/-1;background:transparent;color:var(--red);border-color:var(--line);opacity:.85}
+.client-quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 6px}
+.client-quick-actions .btn{min-height:46px;padding:8px 10px;font-size:13.5px;border-radius:8px}
+.client-quick-actions .btn.follow{background:var(--green);border-color:var(--green);color:#fff}
+.client-quick-actions .btn.convert{background:var(--gold);border-color:var(--gold);color:#2b1f0c}
+.client-quick-actions .btn.match{background:var(--blue);border-color:var(--blue);color:#fff}
+.client-quick-actions .btn.edit{background:transparent;color:var(--ink);border-color:var(--line)}
 .client-section{margin:10px 0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
 .client-section summary{list-style:none;display:flex;align-items:center;justify-content:space-between;padding:11px 14px;font-size:14.5px;font-weight:600;cursor:pointer;background:#fafbfa}
 .client-section summary::-webkit-details-marker{display:none}
 .client-section summary:after{content:"›";font-size:18px;color:var(--ink2);transform:rotate(90deg);transition:.15s}
 .client-section[open] summary:after{transform:rotate(-90deg)}
+.client-section summary .sec-actions{display:flex;gap:6px;align-items:center}
+.client-section summary .sec-actions .link{font-size:12px;font-weight:500;color:var(--blue);text-decoration:underline;text-underline-offset:2px;padding:2px 4px}
 .client-section .section-body{padding:10px 14px 14px}
 .client-section h3.sec{margin:0 0 10px;font-size:15px}
+.client-delete{margin:14px 0 4px}
+.client-delete .btn{width:100%;min-height:44px;background:transparent;color:var(--red);border-color:var(--line);font-size:13.5px}
 .act-btn{display:flex;align-items:center;gap:14px;padding:13px 16px;border-radius:var(--r);border:1px solid var(--line);background:var(--paper);margin:10px 0;text-decoration:none;color:var(--ink);min-height:62px;transition:.15s}
 .act-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.08)}
 .act-btn svg{width:30px;height:30px;flex:0 0 30px}
@@ -1608,21 +1614,21 @@ function clientDetail(id){
   var infoRows=rows.map(function(r){var v=r[1];if(!v)return '';var tap=(r[0]==='电话'||r[0]==='WhatsApp');return '<div class="lab">'+esc(r[0])+'</div><div class="val'+(tap?' tap':'')+'"'+(tap?' onclick="phoneActions(\''+c.id+'\')"':'')+'>'+esc(v)+(tap?ICON_PHONE:'')+'</div>';}).join('');
   var group=(function(){var g=clientGroupOf(c);if(!g)return '';return '<div style="margin:10px 0 0;padding:10px 12px;background:#f3f8f5;border-radius:6px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:10px"><div>当前归类：<span class="tag '+(g.cls||'')+'">'+g.label+'</span></div><button class="btn sm" onclick="jumpToGroup(\''+g.f+'\')">在客户列表查看 ›</button></div>';})();
   var needsBlock=(needs.length||c.note)?('<div class="section-body">'+(needs.length?'<div style="margin-bottom:10px"><div class="tiny muted" style="margin-bottom:3px">购房 / 租房需求</div><div style="font-size:13.5px;line-height:1.7">'+needs.join(' · ')+'</div></div>':'')+(c.note?'<div style="font-size:13.5px;line-height:1.7;padding-top:8px;border-top:1px solid var(--line)">'+esc(c.note)+'</div>':'')+'</div>'):'';
-  var logBody=((c.logs||[]).length?c.logs.slice().reverse().map(function(l){return '<div class="row" style="padding:8px 0"><div class="grow"><div class="tiny muted">'+esc(l.d)+'</div><div style="font-size:14px">'+esc(l.t)+'</div></div></div>'}).join(''):'<div class="tiny muted" style="padding:4px 0">还没有跟进记录。</div>');
-  var viewingBody='<div style="margin-bottom:10px"><button class="btn sm" onclick="newViewing(\''+c.id+'\')">＋ 再加一套房</button></div>'+clientViewingCompare(c.id);
+  var logBody=((c.logs||[]).length?c.logs.slice().reverse().map(function(l){return '<div class="row" style="padding:8px 0"><div class="grow"><div class="tiny muted">'+esc(l.d)+'</div><div style="font-size:14px">'+esc(l.t)+'</div></div></div>'}).join(''):'<div class="tiny muted" style="padding:4px 0">还没有沟通记录。</div>');
+  var viewingBody='<div style="margin-bottom:10px"><button class="btn sm" onclick="newViewing(\''+c.id+'\')">＋ 登记带看</button></div>'+clientViewingCompare(c.id);
+  var followAndViewBody='<div class="section-body"><h3 class="sec">沟通记录 '+((c.logs||[]).length)+' 次</h3>'+logBody+'<h3 class="sec" style="margin-top:14px">看房对比</h3>'+viewingBody+'</div>';
   $('modal').innerHTML='<h3>'+esc(c.name)+'</h3>'+
     '<div class="client-info-grid">'+infoRows+'</div>'+
     group+
+    (needsBlock?'<details class="client-section" open><summary><span>需求 / 备注</span><span class="sec-actions"><span class="link" onclick="event.stopPropagation();editClient(\''+c.id+'\')">编辑</span></span></summary>'+needsBlock+'</details>':'')+
     '<div class="client-quick-actions">'+
-    '<button class="btn" onclick="closeMask();followModal(\''+c.id+'\')">记录跟进</button>'+
-    '<button class="btn ghost" onclick="clientToListing(\''+c.id+'\')">转为房源</button>'+
-    '<button class="btn ghost" onclick="closeMask();openMatchForClient(\''+c.id+'\')">匹配房源</button>'+
-    '<button class="btn ghost" onclick="editClient(\''+c.id+'\')">编辑资料</button>'+
-    '<button class="btn danger" onclick="delClient(\''+c.id+'\')">删除</button>'+
+    '<button class="btn follow" onclick="closeMask();followModal(\''+c.id+'\')">记录跟进</button>'+
+    '<button class="btn convert" onclick="clientToListing(\''+c.id+'\')">转为房源</button>'+
+    '<button class="btn match" onclick="closeMask();openMatchForClient(\''+c.id+'\')">匹配房源</button>'+
+    '<button class="btn edit" onclick="editClient(\''+c.id+'\')">编辑资料</button>'+
     '</div>'+
-    (needsBlock?'<details class="client-section" open><summary>需求 / 备注</summary>'+needsBlock+'</details>':'')+
-    '<details class="client-section"><summary>跟进记录 '+((c.logs||[]).length)+' 次</summary><div class="section-body">'+logBody+'</div></details>'+
-    '<details class="client-section"><summary>看房对比</summary><div class="section-body">'+viewingBody+'</div></details>';
+    '<details class="client-section"><summary>跟进与带看</summary>'+followAndViewBody+'</details>'+
+    '<div class="client-delete"><button class="btn danger" onclick="delClient(\''+c.id+'\')">删除该客户</button></div>';
   $('mask').classList.add('on');
 }
 function clientGroupOf(c){
