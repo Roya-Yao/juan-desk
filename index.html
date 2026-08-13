@@ -267,13 +267,17 @@ svg.chart{display:block;width:100%;height:auto;overflow:visible}
 .client-info-grid .val{padding:4px 0;text-align:right;word-break:break-word}
 .client-info-grid .val.tap{color:var(--blue);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 .client-quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 6px}
-.client-quick-actions .btn{min-height:46px;padding:8px 10px;font-size:13.5px;border-radius:8px}
-.client-quick-actions .btn.follow{background:var(--green);border-color:var(--green);color:#fff}
-.client-quick-actions .btn.convert{background:var(--gold);border-color:var(--gold);color:#2b1f0c}
-.client-quick-actions .btn.match{background:var(--blue);border-color:var(--blue);color:#fff}
-.client-quick-actions .btn.edit{background:transparent;color:var(--ink);border-color:var(--line)}
+.client-quick-actions .btn{min-height:46px;padding:8px 10px;font-size:13.5px;border-radius:8px;font-weight:500;transition:.12s}
+.client-quick-actions .btn.follow{background:#e8f3ef;border-color:#c9ddd4;color:var(--green)}
+.client-quick-actions .btn.follow:active{background:#d8ebe3}
+.client-quick-actions .btn.convert{background:#fbf1dd;border-color:#eaddc3;color:#8a6625}
+.client-quick-actions .btn.convert:active{background:#f5e6c8}
+.client-quick-actions .btn.match{background:#eef3f8;border-color:#cddce9;color:var(--blue)}
+.client-quick-actions .btn.match:active{background:#dfe9f3}
+.client-quick-actions .btn.edit{background:#f3f1ed;border-color:#e0dbd3;color:var(--ink)}
+.client-quick-actions .btn.edit:active{background:#e9e6e0}
 .client-section{margin:10px 0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
-.client-section summary{list-style:none;display:flex;align-items:center;justify-content:space-between;padding:11px 14px;font-size:14.5px;font-weight:600;cursor:pointer;background:#fafbfa}
+.client-section summary{list-style:none;display:flex;align-items:center;justify-content:space-between;padding:11px 14px;font-size:14.5px;font-weight:600;cursor:pointer;background:#f7f5f1}
 .client-section summary::-webkit-details-marker{display:none}
 .client-section summary:after{content:"›";font-size:18px;color:var(--ink2);transform:rotate(90deg);transition:.15s}
 .client-section[open] summary:after{transform:rotate(-90deg)}
@@ -282,7 +286,7 @@ svg.chart{display:block;width:100%;height:auto;overflow:visible}
 .client-section .section-body{padding:10px 14px 14px}
 .client-section h3.sec{margin:0 0 10px;font-size:15px}
 .client-delete{margin:14px 0 4px}
-.client-delete .btn{width:100%;min-height:44px;background:transparent;color:var(--red);border-color:var(--line);font-size:13.5px}
+.client-delete .btn{width:100%;min-height:44px;background:#fdf6f5;color:var(--red);border-color:#ecd9d5;font-size:13.5px}
 .act-btn{display:flex;align-items:center;gap:14px;padding:13px 16px;border-radius:var(--r);border:1px solid var(--line);background:var(--paper);margin:10px 0;text-decoration:none;color:var(--ink);min-height:62px;transition:.15s}
 .act-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.08)}
 .act-btn svg{width:30px;height:30px;flex:0 0 30px}
