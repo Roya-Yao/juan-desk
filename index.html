@@ -290,6 +290,21 @@ svg.chart{display:block;width:100%;height:auto;overflow:visible}
 .client-section h3.sec{margin:0 0 10px;font-size:15px}
 .client-delete{margin:14px 0 4px}
 .client-delete .btn{width:100%;min-height:44px;background:#fdf6f5;color:var(--red);border-color:#ecd9d5;font-size:13.5px}
+/* ===== 智能找房 Agent 面板 ===== */
+.find-actions{display:flex;gap:8px;flex-wrap:wrap}
+.find-summary{background:#f3f8f5;border:1px solid #dcebe3;border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.7;color:var(--ink);margin-bottom:6px}
+.contact-list{display:flex;flex-direction:column;gap:6px}
+.contact-row{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fafbfa;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.find-list{display:flex;flex-direction:column;gap:8px}
+.find-card{border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:8px;padding:9px 11px;background:#fff}
+.find-card.g0{border-left-color:#2e7d52}
+.find-card.g1{border-left-color:#b8860b}
+.find-card.g2{border-left-color:#c0392b}
+.find-card.g3{border-left-color:#2980b9}
+.find-card.g4{border-left-color:#8e44ad}
+.find-card .lk{color:var(--blue);font-size:12.5px;text-decoration:none}
+.find-card .lk:hover{text-decoration:underline}
+
 .act-btn{display:flex;align-items:center;gap:14px;padding:13px 16px;border-radius:var(--r);border:1px solid var(--line);background:var(--paper);margin:10px 0;text-decoration:none;color:var(--ink);min-height:62px;transition:.15s}
 .act-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.08)}
 .act-btn svg{width:30px;height:30px;flex:0 0 30px}
@@ -505,7 +520,7 @@ svg.chart{display:block;width:100%;height:auto;overflow:visible}
   <div class="page-head">
     <div><div class="eyebrow">CRM</div><h2 class="page">客户跟踪</h2>
     <div class="page-sub">采用销售行业经典的「1-3-7-15-30 跟进法则」：首访后第 1 / 3 / 7 / 15 / 30 天递进触达，之后双月·季度·半年·年度维护；到期自动进入「今天要处理」。</div></div>
-    <div class="btn-row"><button class="btn gold" onclick="toggleHide('cliForm')">+ 新增客户</button><button class="btn ghost" onclick="bulkClientModal()">批量录入</button><button class="btn ghost" onclick="mergeClientsModal()">批量合并导入</button><button class="btn ghost sm" onclick="exportClientsExcel()">导出 Excel</button></div>
+    <div class="btn-row"><button class="btn gold" onclick="toggleHide('cliForm')">+ 新增客户</button><button class="btn ghost" onclick="bulkClientModal()">批量录入</button><button class="btn ghost" onclick="mergeClientsModal()">批量合并导入</button><button class="btn ghost sm" onclick="exportClientsExcel()">导出 Excel</button><button class="btn ghost sm" onclick="scanAllUnmetNeeds()">扫描未满足需求</button></div>
   </div>
   <div class="panel hide" id="cliForm">
     <div class="form">
@@ -1831,9 +1846,11 @@ function clientDetail(id){
     '<button class="btn match" onclick="closeMask();openMatchForClient(\''+c.id+'\')">匹配房源</button>'+
     '<button class="btn edit" onclick="editClient(\''+c.id+'\')">编辑资料</button>'+
     '</div>'+
+    findingPanelHtml(c.id)+
     '<details class="client-section"><summary>跟进与带看</summary>'+followAndViewBody+'</details>'+
     '<div class="client-delete"><button class="btn danger" onclick="delClient(\''+c.id+'\')">删除该客户</button></div>';
   $('mask').classList.add('on');
+  refreshFindingResults(c.id);
 }
 function clientNeedFields(c){
   return '<div class="form" style="margin:0">'+
@@ -3714,6 +3731,200 @@ async function doRecover(){
     closeMask();toast('正在用恢复码解锁…');syncNow(false);
   }catch(e){toast('恢复失败：'+(e.message||e));}
 }
+
+/* ==========================================================
+   智能找房 Agent 模块（p16）
+   「匹配 → 搜索(PF) → 联系 → 总结」全链路
+   - 内部匹配：复用 p6 的 matchListingsForClient
+   - 外部搜索：脱敏任务写公开 Gist，由 Agent(云端) 搜 Property Finder 并抓中介联系方式；
+     Bayut 云端被验证码挡，用户迪拜网络搜到后贴链接由 Agent 合并去重
+   - 结果：Agent 写回仓库 agent_results.json，本模块读取并渲染
+   隐私：Gist 仅存 clientId + 需求字段（不含客户真名/电话）；房源链接为公开平台链接
+   ========================================================== */
+var AGENT_GIST_KEY='wb_dxb_agent_gist';
+var AGENT_RESULT_REPO='Roya-Yao/juan-desk';      // 结果写回的公开仓库
+var AGENT_RESULT_FILE='agent_results.json';        // 仓库根目录结果文件
+var _findingLastFetch=0;
+
+function agentGistId(){try{return localStorage.getItem(AGENT_GIST_KEY)||''}catch(e){return ''}}
+function setAgentGistId(id){try{localStorage.setItem(AGENT_GIST_KEY,id)}catch(e){}}
+function agentSyncReady(){return !!(window._syncCfg&&_syncCfg.token);}
+function _agentHeaders(){return {'Authorization':'Bearer '+(_syncCfg&&_syncCfg.token||''),'Accept':'application/vnd.github+json','Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28'};}
+function b64ToStr(b64){
+  var bin=atob(String(b64).replace(/\s/g,''));
+  var bytes=new Uint8Array(bin.length);
+  for(var i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+  try{return new TextDecoder('utf-8').decode(bytes);}catch(e){return bin;}
+}
+
+/* ---------- Gist（任务队列） ---------- */
+async function ensureAgentGist(){
+  if(agentGistId())return agentGistId();
+  if(!agentSyncReady()){toast('请先在「数据同步」里配置 GitHub Token');return '';}
+  var body=JSON.stringify({description:'juan-desk 智能找房任务队列（脱敏）',public:true,
+    files:{'jobs.json':{content:JSON.stringify({jobs:[]})},'README.md':{content:'智能找房 Agent 任务队列。jobs.json=待处理任务；结果由 Agent 写回仓库 '+AGENT_RESULT_FILE+'。'}}});
+  try{
+    var r=await _fetchTimeout('https://api.github.com/gists',{method:'POST',headers:_agentHeaders(),body:body},9000);
+    if(!r.ok){toast('创建任务队列失败：HTTP '+r.status);return '';}
+    var j=await r.json(); setAgentGistId(j.id); toast('已创建找房任务队列'); return j.id;
+  }catch(e){toast('创建任务队列出错：'+((e&&e.message)||e));return '';}
+}
+async function agentGistGetJobs(){
+  var id=agentGistId(); if(!id)return {jobs:[]};
+  try{
+    var r=await _fetchTimeout('https://api.github.com/gists/'+id,{headers:_agentHeaders()},6000);
+    if(!r.ok)return {jobs:[]};
+    var j=await r.json(); var f=j.files&&j.files['jobs.json'];
+    if(!f||!f.content)return {jobs:[]};
+    var o=JSON.parse(f.content); return o&&o.jobs?o:{jobs:[]};
+  }catch(e){return {jobs:[]};}
+}
+async function agentGistWriteJobs(obj){
+  var id=agentGistId(); if(!id)return false;
+  try{
+    var r=await _fetchTimeout('https://api.github.com/gists/'+id,{method:'PATCH',headers:_agentHeaders(),body:JSON.stringify({files:{'jobs.json':{content:JSON.stringify(obj)}}})},9000);
+    return r.ok;
+  }catch(e){return false;}
+}
+
+/* ---------- 需求 → 结构化 spec ---------- */
+function buildNeedSpec(c){
+  return {status:c.needStatus||'不限',budgetMin:c.budgetMin||0,budgetMax:c.budgetMax||0,
+    beds:c.needBeds||0,baths:c.needBaths||0,area:c.needArea||0,region:(c.needRegion||'').trim(),
+    note:(c.note||'').trim()};
+}
+function needSpecText(n){
+  var a=[];
+  if(n.status&&n.status!=='不限')a.push(n.status);
+  if(n.budgetMin||n.budgetMax)a.push('预算 '+(n.budgetMin?n.budgetMin.toLocaleString('en-US'):'—')+'–'+(n.budgetMax?n.budgetMax.toLocaleString('en-US'):'∞')+' AED');
+  if(n.beds||n.baths)a.push('户型 '+(n.beds?n.beds+'房':'')+(n.baths?n.baths+'卫':''));
+  if(n.area)a.push('面积≥'+n.area+'㎡');
+  if(n.region)a.push('区域 '+n.region);
+  if(n.note)a.push(n.note);
+  return a.length?a.join(' · '):'（未填写需求）';
+}
+
+/* ---------- 派发任务 ---------- */
+function dispatchFindingModal(id){
+  var c=(D.clients||[]).filter(function(x){return x.id===id})[0];if(!c)return;
+  var n=buildNeedSpec(c);
+  var internal=matchListingsForClient(c).length;
+  $('modal').innerHTML='<h3>派发找房任务 · '+esc(c.name)+'</h3>'+
+    '<div class="tiny muted" style="margin:6px 0 12px">用你的需求生成<b>脱敏任务</b>（仅含需求字段，不含姓名电话），写入任务队列。Agent 在云端搜 Property Finder、抓取中介联系方式并去重，结果回写此处。<b>Bayut</b> 云端被验证码挡，请在迪拜网络搜到后把链接贴下面，Agent 会合并去重。</div>'+
+    '<div style="padding:10px 12px;background:#f7f5f1;border-radius:8px;font-size:13.5px;line-height:1.7;margin-bottom:12px"><b>需求：</b>'+esc(needSpecText(n))+'<br><b>内部房源匹配：</b>'+(internal?('已匹配 '+internal+' 套（外部搜索作为补充）'):'无内部匹配，主要靠外部搜索')+'</div>'+
+    '<label class="f">Bayut 链接（可选，每行一个）</label><textarea id="bfBayut" placeholder="https://www.bayut.com/..." style="min-height:64px"></textarea>'+
+    '<div class="foot"><button class="btn ghost" onclick="closeMask()">取消</button><button class="btn" onclick="doDispatchFinding(\''+id+'\')">派发任务</button></div>';
+  $('mask').classList.add('on');
+}
+async function doDispatchFinding(id){
+  var c=(D.clients||[]).filter(function(x){return x.id===id})[0];if(!c)return;
+  var gid=await ensureAgentGist(); if(!gid){closeMask();return;}
+  var jobsObj=await agentGistGetJobs();
+  var jobs=(jobsObj.jobs||[]).filter(function(j){return j.id!==id;});
+  var n=buildNeedSpec(c);
+  jobs.push({id:id,ts:toDay(),need:n,
+    bayutLinks:(val('bfBayut')||'').split('\n').map(function(s){return s.trim()}).filter(Boolean),
+    internalMatchCount:matchListingsForClient(c).length,status:'pending',createdAt:Date.now()});
+  var ok=await agentGistWriteJobs({jobs:jobs});
+  closeMask();
+  if(ok){ clientDetail(id); toast('已派发找房任务 ✓ Agent 会处理并回写结果'); }
+  else toast('派发失败，请检查 Token / 网络');
+}
+
+/* ---------- 批量扫描未满足需求 ---------- */
+async function scanAllUnmetNeeds(){
+  if(!agentSyncReady()){toast('请先在「数据同步」配置 Token');return;}
+  var n=0, gid=await ensureAgentGist(); if(!gid)return;
+  var jobsObj=await agentGistGetJobs();
+  var jobs=jobsObj.jobs||[];
+  var existing={}; jobs.forEach(function(j){existing[j.id]=true;});
+  for(var i=0;i<(D.clients||[]).length;i++){
+    var c=D.clients[i];
+    var hasNeed=(c.needStatus&&c.needStatus!=='不限')||c.budgetMin||c.budgetMax||c.needBeds||c.needBaths||c.needRegion||c.note;
+    if(!hasNeed)continue;
+    if(matchListingsForClient(c).length>0)continue;     // 内部已匹配则不派外部
+    if(existing[c.id]){n++;continue;}                   // 已在队列
+    var n2=buildNeedSpec(c);
+    jobs.push({id:c.id,ts:toDay(),need:n2,bayutLinks:[],internalMatchCount:0,status:'pending',createdAt:Date.now()});
+    n++;
+  }
+  if(await agentGistWriteJobs({jobs:jobs}))toast('已派发 '+n+' 个未满足需求到找房队列');
+  else toast('批量派发失败');
+}
+
+/* ---------- 读取结果（仓库 agent_results.json） ---------- */
+async function refreshFindingResults(id){
+  var now=Date.now();
+  if(now-_findingLastFetch<8000 && window._findingLoading){return;}   // 8s 内去抖
+  window._findingLoading=true; _findingLastFetch=now;
+  var el=document.getElementById('findingResults'); if(el)el.innerHTML='<div class="tiny muted" style="padding:8px 0">正在拉取结果…</div>';
+  try{
+    var r=await _fetchTimeout('https://api.github.com/repos/'+AGENT_RESULT_REPO+'/contents/'+AGENT_RESULT_FILE,{headers:{'Accept':'application/vnd.github+json'},method:'GET'},7000);
+    if(r.status===404){ if(el)el.innerHTML='<div class="tiny muted" style="padding:8px 0">还没有找房结果。点「派发任务」后，让 Agent 处理即可。</div>'; window._findingLoading=false; return; }
+    if(!r.ok){ if(el)el.innerHTML='<div class="tiny muted" style="padding:8px 0">读取结果失败（HTTP '+r.status+'），稍后点「刷新结果」重试。</div>'; window._findingLoading=false; return; }
+    var j=await r.json();
+    var obj=JSON.parse(b64ToStr(j.content));
+    renderFindingResults(id, obj && obj[id] ? obj[id] : null);
+  }catch(e){
+    if(el)el.innerHTML='<div class="tiny muted" style="padding:8px 0">读取结果出错，稍后重试。</div>';
+  }
+  window._findingLoading=false;
+}
+function renderFindingResults(id,res){
+  var el=document.getElementById('findingResults'); if(!el)return;
+  if(!res){
+    el.innerHTML='<div class="tiny muted" style="padding:8px 0">该客户暂无找房结果。派发任务后由 Agent 处理。</div>';
+    return;
+  }
+  var html='';
+  if(res.summary)html+='<div class="find-summary">'+esc(res.summary)+'</div>';
+  // 联系清单（去重后的中介）
+  if(res.contacts&&res.contacts.length){
+    html+='<div class="tiny muted" style="margin:10px 0 4px">联系清单（已按中介去重）</div>';
+    html+='<div class="contact-list">'+res.contacts.map(function(ct){
+      return '<div class="contact-row"><div class="grow"><div style="font-size:14px">'+esc(ct.agent||'未知中介')+'</div>'+
+        '<div class="tiny muted">'+(ct.platforms||[]).map(function(p){return '<span class="tag">'+esc(p)+'</span>'}).join(' ')+' · 房源 '+((ct.listings||0))+' 套 · '+(ct.contact||'')+'</div></div>'+
+        (ct.url?'<a class="lk" href="'+esc(ct.url)+'" target="_blank" rel="noopener">主页</a>':'')+'</div>';
+    }).join('')+'</div>';
+  }
+  // 房源列表（按去重组着色）
+  if(res.listings&&res.listings.length){
+    html+='<div class="tiny muted" style="margin:12px 0 4px">匹配房源（'+(res.pfSearched?'含 Property Finder 云端搜索':'')+(res.bayutCount?(' + Bayut '+res.bayutCount+' 条'):'')+'）</div>';
+    html+='<div class="find-list">'+res.listings.map(function(L){
+      var pf=(L.platform==='Bayut')?'<span class="tag" style="background:#fdeaea;color:#c0392b">Bayut</span>':'<span class="tag" style="background:#eef4f1;color:#2e7d52">PF</span>';
+      return '<div class="find-card '+(L.dupGroup?('g'+((L.dupGroup.charCodeAt(0)||0)%5)):'')+'">'+
+        '<div style="font-size:14px;font-weight:600">'+esc(L.title||'房源')+' '+pf+'</div>'+
+        '<div class="tiny muted" style="margin:3px 0">'+(L.type||'')+' · '+(L.location||'')+(L.price?(L.rent?(' · 年租 '+L.rent.toLocaleString('en-US')+' AED'):(' · AED '+L.price.toLocaleString('en-US'))):'')+'</div>'+
+        (L.agent?'<div class="tiny muted">中介：'+esc(L.agent)+(L.contact?(' · '+esc(L.contact)):'')+'</div>':'')+
+        (L.url?'<a class="lk" href="'+esc(L.url)+'" target="_blank" rel="noopener" style="margin-top:4px;display:inline-block">查看房源 ›</a>':'')+
+        (L.dupNote?'<div class="tiny" style="color:#b8860b;margin-top:3px">'+esc(L.dupNote)+'</div>':'')+
+        '</div>';
+    }).join('')+'</div>';
+  }else{
+    html+='<div class="tiny muted" style="padding:8px 0">外部暂未找到匹配房源。可补充 Bayut 链接或放宽需求。</div>';
+  }
+  if(res.note)html+='<div class="tiny muted" style="margin-top:8px">ⓘ '+esc(res.note)+'</div>';
+  el.innerHTML=html;
+}
+
+/* ---------- 客户详情里的「智能找房」区块 ---------- */
+function findingPanelHtml(id){
+  var c=(D.clients||[]).filter(function(x){return x.id===id})[0];if(!c)return '';
+  var internal=matchListingsForClient(c);
+  var internalHtml=internal.length?('<div style="margin:6px 0 10px;font-size:13px">内部房源已匹配 <b>'+internal.length+'</b> 套 · <button class="link" onclick="closeMask();openMatchForClient(\''+id+'\')">查看</button></div>'):'<div class="tiny muted" style="margin:6px 0 10px">内部房源暂无匹配，派发后由 Agent 搜外部平台</div>';
+  return '<details class="client-section" open><summary><span>智能找房</span></summary>'+
+    '<div class="section-body">'+
+      internalHtml+
+      '<div class="find-actions">'+
+        '<button class="btn sm" onclick="dispatchFindingModal(\''+id+'\')">🔍 派发找房任务</button>'+
+        '<button class="btn sm ghost" onclick="refreshFindingResults(\''+id+'\')">刷新结果</button>'+
+      '</div>'+
+      '<div id="findingResults" style="margin-top:6px"></div>'+
+    '</div></details>';
+}
+
+/* 给 Agent 用的：在仓库写回结果（由 Agent 云端调用，此处仅占位，实际写入走仓库 API） */
+/* 工作台只读 agent_results.json；Agent 处理完后写回。无需工作台侧写结果。 */
 
 /* ==========================================================
    Roya · 宝宝成长记录（宝宝英文名 Roya）
