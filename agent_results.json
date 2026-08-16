@@ -1,0 +1,107 @@
+{
+  "msvq2fiskrjfd": {
+    "ts": "2026-08-16",
+    "need": {
+      "status": "不限",
+      "region": "劳工营 Al Quoz 100-200人"
+    },
+    "pfSearched": true,
+    "bayutCount": 0,
+    "listings": [
+      {
+        "platform": "Property Finder",
+        "title": "Staff Accommodation Al Quoz 3",
+        "type": "员工宿舍",
+        "location": "Al Quoz 3, Dubai",
+        "price": "AED 5,700/月 (AED 68,400/年)",
+        "rent": true,
+        "agent": "Bazil Sajjad (SUPERAGENT)",
+        "contact": "Call / WhatsApp via Property Finder",
+        "url": "http://propertyfinder.ae/en/commercial-rent/dubai/staff-accommodation-for-rent.html",
+        "dupGroup": "g0",
+        "dupNote": "同一中介 Bazil Sajjad 在 Al Quoz 3 的另一套员工宿舍"
+      },
+      {
+        "platform": "Property Finder",
+        "title": "Labor Camp Al Quoz 3",
+        "type": "劳工营",
+        "location": "Al Quoz 3, Dubai",
+        "price": "Premium · 请询价",
+        "rent": true,
+        "agent": "Bazil Sajjad (SUPERAGENT)",
+        "contact": "Call / WhatsApp via Property Finder",
+        "url": "http://propertyfinder.ae/en/commercial-rent/labor-camps-for-rent.html",
+        "dupGroup": "g0",
+        "dupNote": "与上面 Al Quoz 3 员工宿舍同为 Bazil Sajjad 发布，疑似同一中介多 listing"
+      },
+      {
+        "platform": "Property Finder",
+        "title": "Staff Accommodation Jebel Ali Industrial 1",
+        "type": "员工宿舍",
+        "location": "Jebel Ali Industrial 1, Dubai",
+        "price": "AED 5,700/月 (AED 68,400/年)",
+        "rent": true,
+        "agent": "Bazil Sajjad (SUPERAGENT)",
+        "contact": "Call / WhatsApp via Property Finder",
+        "url": "http://propertyfinder.ae/en/commercial-rent/dubai/staff-accommodation-for-rent.html",
+        "dupGroup": "g1",
+        "dupNote": ""
+      },
+      {
+        "platform": "Property Finder",
+        "title": "Independent Camp Jebel Ali",
+        "type": "独立劳工营",
+        "location": "Jebel Ali, Dubai",
+        "price": "AED 3,600,000/年",
+        "rent": true,
+        "agent": "Shafeekh Nasarudeen (SUPERAGENT)",
+        "contact": "Call / WhatsApp via Property Finder",
+        "url": "http://propertyfinder.ae/en/commercial-rent/labor-camps-for-rent.html",
+        "dupGroup": "g2",
+        "dupNote": "整营 50 间 / 320 人容量，适合 100-200 人规模"
+      },
+      {
+        "platform": "Property Finder",
+        "title": "Staff Accommodation DIP 2",
+        "type": "员工宿舍",
+        "location": "Dubai Investment Park 2 (DIP 2), Dubai",
+        "price": "AED 6,883,000/年",
+        "rent": true,
+        "agent": "Shafeekh Nasarudeen (SUPERAGENT)",
+        "contact": "Call / WhatsApp via Property Finder",
+        "url": "http://propertyfinder.ae/en/commercial-rent/labor-camps-for-rent.html",
+        "dupGroup": "g2",
+        "dupNote": "188 间，大容量"
+      }
+    ],
+    "contacts": [
+      {
+        "agent": "Bazil Sajjad (SUPERAGENT)",
+        "platforms": [
+          "Property Finder"
+        ],
+        "listings": [
+          "Staff Accommodation Al Quoz 3",
+          "Labor Camp Al Quoz 3",
+          "Staff Accommodation Jebel Ali Industrial 1"
+        ],
+        "contact": "Call / WhatsApp via Property Finder",
+        "url": "http://propertyfinder.ae/en/commercial-rent/dubai/staff-accommodation-for-rent.html"
+      },
+      {
+        "agent": "Shafeekh Nasarudeen (SUPERAGENT)",
+        "platforms": [
+          "Property Finder"
+        ],
+        "listings": [
+          "Independent Camp Jebel Ali",
+          "Staff Accommodation DIP 2"
+        ],
+        "contact": "Call / WhatsApp via Property Finder",
+        "url": "http://propertyfinder.ae/en/commercial-rent/labor-camps-for-rent.html"
+      }
+    ],
+    "summary": "在 Property Finder 搜到 Al Quoz 及邻近 Jebel Ali / DIP 的劳工营与员工宿舍。单套员工宿舍约 AED 5,700/月（6 人）；若需 100–200 人整营，Jebel Ali 独立营（50 间/320 人容量，AED 3.6M/年）或 DIP2 大容量营（188 间）更合适。建议优先联系 Bazil Sajjad（多套 Al Quoz 房源）。",
+    "note": "本次仅 Property Finder 结果（未收到 Bayut 链接）；如需 Bayut 交叉对比请在派发时贴 Bayut 链接。数据来源 propertyfinder.ae，截至 2026-08-16。"
+  }
+}
