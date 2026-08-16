@@ -3834,22 +3834,37 @@ async function doDispatchFinding(id){
 /* ---------- 批量扫描未满足需求 ---------- */
 async function scanAllUnmetNeeds(){
   if(!agentSyncReady()){toast('请先在「数据同步」配置 Token');return;}
-  var n=0, gid=await ensureAgentGist(); if(!gid)return;
+  var gid=await ensureAgentGist(); if(!gid)return;
   var jobsObj=await agentGistGetJobs();
   var jobs=jobsObj.jobs||[];
   var existing={}; jobs.forEach(function(j){existing[j.id]=true;});
+  var will=[];
   for(var i=0;i<(D.clients||[]).length;i++){
     var c=D.clients[i];
     var hasNeed=(c.needStatus&&c.needStatus!=='不限')||c.budgetMin||c.budgetMax||c.needBeds||c.needBaths||c.needRegion||c.note;
     if(!hasNeed)continue;
     if(matchListingsForClient(c).length>0)continue;     // 内部已匹配则不派外部
-    if(existing[c.id]){n++;continue;}                   // 已在队列
-    var n2=buildNeedSpec(c);
-    jobs.push({id:c.id,ts:toDay(),need:n2,bayutLinks:[],internalMatchCount:0,status:'pending',createdAt:Date.now()});
-    n++;
+    if(existing[c.id])continue;                         // 已在队列
+    will.push(c);
   }
-  if(await agentGistWriteJobs({jobs:jobs}))toast('已派发 '+n+' 个未满足需求到找房队列');
+  if(!will.length){toast('没有新的未满足需求（内部已匹配或已在队列）');return;}
+  if(!confirm('将把 '+will.length+' 个客户的找房需求派发到 Agent 找房队列，确认？\n\n单个客户请在客户详情里点「派发找房任务」，更安全。'))return;
+  for(var k=0;k<will.length;k++){
+    var n2=buildNeedSpec(will[k]);
+    jobs.push({id:will[k].id,ts:toDay(),need:n2,bayutLinks:[],internalMatchCount:0,status:'pending',createdAt:Date.now()});
+  }
+  if(await agentGistWriteJobs({jobs:jobs}))toast('已派发 '+will.length+' 个未满足需求到找房队列');
   else toast('批量派发失败');
+}
+
+/* 清空找房队列（用浏览器已配的 sync token，无需发给任何人） */
+async function clearAgentGist(){
+  var gid=agentGistId();
+  if(!gid){toast('还没有任务队列');return;}
+  if(!confirm('确定清空找房任务队列？已派发的任务将被移除（不影响客户数据）。'))return;
+  var ok=await agentGistWriteJobs({jobs:[]});
+  if(ok)toast('找房队列已清空 ✓');
+  else toast('清空失败，请检查 Token / 网络');
 }
 
 /* ---------- 读取结果（仓库 agent_results.json） ---------- */
@@ -3913,7 +3928,7 @@ function findingPanelHtml(id){
   var internal=matchListingsForClient(c);
   var internalHtml=internal.length?('<div style="margin:6px 0 10px;font-size:13px">内部房源已匹配 <b>'+internal.length+'</b> 套 · <button class="link" onclick="closeMask();openMatchForClient(\''+id+'\')">查看</button></div>'):'<div class="tiny muted" style="margin:6px 0 10px">内部房源暂无匹配，派发后由 Agent 搜外部平台</div>';
   var gId=agentGistId();
-  var gistLine=gId?('<div class="tiny muted" style="margin:0 0 10px">任务队列 Gist：<a href="https://gist.github.com/'+gId+'" target="_blank" rel="noopener">gist.github.com/'+gId+'</a> · <button class="link" onclick="(navigator.clipboard?navigator.clipboard.writeText(\'https://gist.github.com/'+gId+'\'):0);toast(\'已复制任务队列链接\')">复制</button><br>把这条链接发给小娟的 AI，它就会搜 Property Finder + 合并 Bayut 并回写结果。</div>'):'';
+  var gistLine=gId?('<div class="tiny muted" style="margin:0 0 10px">任务队列 Gist：<a href="https://gist.github.com/'+gId+'" target="_blank" rel="noopener">gist.github.com/'+gId+'</a> · <button class="link" onclick="(navigator.clipboard?navigator.clipboard.writeText(\'https://gist.github.com/'+gId+'\'):0);toast(\'已复制任务队列链接\')">复制</button> · <button class="link" onclick="clearAgentGist()">清空队列</button><br>把这条链接发给小娟的 AI，它就会搜 Property Finder + 合并 Bayut 并回写结果。</div>'):'';
   return '<details class="client-section" open><summary><span>智能找房</span></summary>'+
     '<div class="section-body">'+
       internalHtml+
