@@ -3912,9 +3912,12 @@ function findingPanelHtml(id){
   var c=(D.clients||[]).filter(function(x){return x.id===id})[0];if(!c)return '';
   var internal=matchListingsForClient(c);
   var internalHtml=internal.length?('<div style="margin:6px 0 10px;font-size:13px">内部房源已匹配 <b>'+internal.length+'</b> 套 · <button class="link" onclick="closeMask();openMatchForClient(\''+id+'\')">查看</button></div>'):'<div class="tiny muted" style="margin:6px 0 10px">内部房源暂无匹配，派发后由 Agent 搜外部平台</div>';
+  var gId=agentGistId();
+  var gistLine=gId?('<div class="tiny muted" style="margin:0 0 10px">任务队列 Gist：<a href="https://gist.github.com/'+gId+'" target="_blank" rel="noopener">gist.github.com/'+gId+'</a> · <button class="link" onclick="(navigator.clipboard?navigator.clipboard.writeText(\'https://gist.github.com/'+gId+'\'):0);toast(\'已复制任务队列链接\')">复制</button><br>把这条链接发给小娟的 AI，它就会搜 Property Finder + 合并 Bayut 并回写结果。</div>'):'';
   return '<details class="client-section" open><summary><span>智能找房</span></summary>'+
     '<div class="section-body">'+
       internalHtml+
+      gistLine+
       '<div class="find-actions">'+
         '<button class="btn sm" onclick="dispatchFindingModal(\''+id+'\')">🔍 派发找房任务</button>'+
         '<button class="btn sm ghost" onclick="refreshFindingResults(\''+id+'\')">刷新结果</button>'+
