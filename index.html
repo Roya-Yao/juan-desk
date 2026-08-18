@@ -1871,7 +1871,7 @@ function clientDetail(id){
     '<details class="client-section"><summary>跟进与带看</summary>'+followAndViewBody+'</details>'+
     '<div class="client-delete"><button class="btn danger" onclick="delClient(\''+c.id+'\')">删除该客户</button></div>';
   $('mask').classList.add('on');
-  refreshFindingResults(c.id);
+  if(typeof FINDING_ENABLED!=='undefined'&&FINDING_ENABLED)refreshFindingResults(c.id);
 }
 function clientNeedFields(c){
   return '<div class="form" style="margin:0">'+
@@ -3766,6 +3766,9 @@ var AGENT_GIST_KEY='wb_dxb_agent_gist';
 var AGENT_RESULT_REPO='Roya-Yao/juan-desk';      // 结果写回的公开仓库
 var AGENT_RESULT_FILE='agent_results.json';        // 仓库根目录结果文件
 var _findingLastFetch=0;
+/* 智能找房外部抓取开关：2026-08-18 用户决定先不要此功能（依赖 WorkBuddy 联网抓取），故默认关闭。
+   代码全部保留，将来恢复只需把下面改为 true 并重新部署即可。*/
+var FINDING_ENABLED=false;
 
 function agentGistId(){try{return localStorage.getItem(AGENT_GIST_KEY)||''}catch(e){return ''}}
 function setAgentGistId(id){try{localStorage.setItem(AGENT_GIST_KEY,id)}catch(e){}}
@@ -3919,6 +3922,7 @@ function renderFindingResults(id,res){
 
 /* ---------- 客户详情里的「智能找房」区块 ---------- */
 function findingPanelHtml(id){
+  if(!FINDING_ENABLED)return '';   // 2026-08-18 停用：隐藏智能找房面板，代码保留可恢复
   var c=(D.clients||[]).filter(function(x){return x.id===id})[0];if(!c)return '';
   var internal=matchListingsForClient(c);
   var internalHtml=internal.length?('<div style="margin:6px 0 10px;font-size:13px">内部房源已匹配 <b>'+internal.length+'</b> 套 · <button class="link" onclick="closeMask();openMatchForClient(\''+id+'\')">查看</button></div>'):'<div class="tiny muted" style="margin:6px 0 10px">内部房源暂无匹配，派发后由 Agent 搜外部平台</div>';
