@@ -144,6 +144,10 @@ td.right,th.right{text-align:right}
 .today-head h3{font-family:var(--serif);font-size:20px;font-weight:400}
 .today-head .d{font-size:12.5px;color:#a9c0b7}
 .today-body{padding:6px 20px 14px}
+.todo-toggle{margin:0 20px 12px;padding:10px 12px;background:#f4f6f5;border:1px solid #e1e7e4;border-radius:10px;font-size:13px;color:#5d6b66}
+.todo-toggle .sw{display:flex;align-items:center;gap:8px;cursor:pointer;line-height:1.5}
+.todo-toggle input{width:16px;height:16px;flex:0 0 16px;margin:0}
+.todo-toggle b{color:#1e3b33}
 .t-item{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line2)}
 .t-item:last-child{border-bottom:0}
 .t-item .bar{width:3px;align-self:stretch;border-radius:2px;background:var(--gold);flex:0 0 3px}
@@ -442,6 +446,7 @@ svg.chart{display:block;width:100%;height:auto;overflow:visible}
   </div>
   <div class="today-wrap">
     <div class="today-head"><h3>待处理事项</h3><span class="d" id="todayCount"></span></div>
+    <div class="todo-toggle" id="todoImportToggle"></div>
     <div class="today-body" id="todayList"></div>
   </div>
   <div class="metrics" id="todayMetrics"></div>
@@ -1206,6 +1211,9 @@ function renderToday(){
   var wk=['周日','周一','周二','周三','周四','周五','周六'][td.getDay()];
   $('todayDate').textContent=td.getFullYear()+' 年 '+(td.getMonth()+1)+' 月 '+td.getDate()+' 日 · '+wk+'　迪拜时间与国内时差 4 小时，跨时区联系客户前先确认时间。';
   $('todayCount').textContent=items.length?(items.length+' 项待处理，其中逾期 '+items.filter(function(i){return i.late}).length+' 项'):'今天没有到期事项';
+  $('todoImportToggle').innerHTML=hideImportedTodo()
+    ? '<label class="sw"><input type="checkbox" checked onchange="toggleHideImportedTodo()"> <span>已暂停 <b>'+_importedCount()+'</b> 位未联系导入客户的自动待办 · 你联系一个、记录一次跟进，它就自动回来</span></label>'
+    : '<label class="sw"><input type="checkbox" onchange="toggleHideImportedTodo()"> <span>导入客户也计入每日待办</span></label>';
   $('todayList').innerHTML=items.length?items.map(function(i){
     return '<div class="t-item '+(i.late?'late':'')+'"><div class="bar"></div><div class="txt">'+
       '<div class="src">'+esc(i.src)+(i.late?' <span class="tag late">逾期</span>':'')+'</div>'+
@@ -1757,11 +1765,23 @@ function nextFollow(c){
   return {date:next,label:label};
 }
 var _dueCache=null,_dueDay='';
+// 未联系的「导入」客户：默认不自动进每日待办，避免 3000+ 历史客源每日叠加。
+// 你联系一个、记录一次跟进（logs 有内容）后，它自动回到常规 1-3-7-15-30 跟进节奏。
+function _importedUntouched(c){return (c.src==='导入')&&((c.logs||[]).length===0);}
+function _importedCount(){var n=0;(D.clients||[]).forEach(function(c){if(_importedUntouched(c))n++});return n;}
+function hideImportedTodo(){var v=localStorage.getItem('wb_dxb_hide_imported_todo');return v===null?true:(v==='1');}
+function toggleHideImportedTodo(){
+  var cur=hideImportedTodo();
+  localStorage.setItem('wb_dxb_hide_imported_todo',cur?'0':'1');
+  _dueCache=null;_dueOwnersCache=null;_dueDay='';_dueOwnersDay='';
+  renderToday();
+}
 function dueClients(){
   var td=toDay();
   if(_dueCache&&_dueDay===td)return _dueCache;
   var t0=today0(),out=[];
   (D.clients||[]).forEach(function(c){
+    if(hideImportedTodo()&&_importedUntouched(c))return;   // 跳过未联系的导入客户
     if(c.level&&c.level.indexOf('D')===0&&(c.stage||0)>=LADDER.length)return;
     var n=nextFollow(c);
     if(diffDays(parseDay(n.date),t0)<=0)out.push({c:c,date:n.date,label:n.label,d:diffDays(parseDay(n.date),t0)});
@@ -1775,6 +1795,7 @@ function dueOwners(){
   if(_dueOwnersCache&&_dueOwnersDay===td)return _dueOwnersCache;
   var t0=today0(),out=[];
   (D.clients||[]).forEach(function(c){
+    if(hideImportedTodo()&&_importedUntouched(c))return;   // 跳过未联系的导入客户
     if(c.ctype!=='owner')return;
     if(c.level&&c.level.indexOf('D')===0&&(c.stage||0)>=LADDER.length)return;
     var n=nextFollow(c);
