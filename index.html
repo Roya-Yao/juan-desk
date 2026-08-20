@@ -447,6 +447,7 @@ svg.chart{display:block;width:100%;height:auto;overflow:visible}
   <div class="today-wrap">
     <div class="today-head"><h3>待处理事项</h3><span class="d" id="todayCount"></span></div>
     <div class="todo-toggle" id="todoImportToggle"></div>
+    <div class="todo-toggle" id="todoManualToggle"></div>
     <div class="today-body" id="todayList"></div>
   </div>
   <div class="metrics" id="todayMetrics"></div>
@@ -1214,6 +1215,9 @@ function renderToday(){
   $('todoImportToggle').innerHTML=hideImportedTodo()
     ? '<label class="sw"><input type="checkbox" checked onchange="toggleHideImportedTodo()"> <span>已暂停 <b>'+_importedCount()+'</b> 位未联系导入客户的自动待办 · 你联系一个、记录一次跟进，它就自动回来</span></label>'
     : '<label class="sw"><input type="checkbox" onchange="toggleHideImportedTodo()"> <span>导入客户也计入每日待办</span></label>';
+  $('todoManualToggle').innerHTML=manualFollowMode()
+    ? '<label class="sw"><input type="checkbox" checked onchange="toggleManualFollow()"> <span><b>手动跟进模式</b>：客户不再按日期自动弹提醒。你联系一个、在「记录跟进」里设好「下次改期」，才会在那天提醒（客户始终在客户列表里）。</span></label>'
+    : '<label class="sw"><input type="checkbox" onchange="toggleManualFollow()"> <span>自动跟进提醒（按 1-3-7-15-30 法则每日弹待办）</span></label>';
   $('todayList').innerHTML=items.length?items.map(function(i){
     return '<div class="t-item '+(i.late?'late':'')+'"><div class="bar"></div><div class="txt">'+
       '<div class="src">'+esc(i.src)+(i.late?' <span class="tag late">逾期</span>':'')+'</div>'+
@@ -1776,11 +1780,22 @@ function toggleHideImportedTodo(){
   _dueCache=null;_dueOwnersCache=null;_dueDay='';_dueOwnersDay='';
   renderToday();
 }
+/* 手动跟进模式：默认开。开启后客户不再按 1-3-7-15-30 日期法则自动弹待办，
+   只有你显式在「记录跟进」里设了「下次改期」的客户，才会在那天提醒——即"操作一个提醒一个"。
+   客户始终留在客户列表里，只是不再每天自动堆进待办。 */
+function manualFollowMode(){var v=localStorage.getItem('wb_dxb_manual_follow');return v===null?true:(v==='1');}
+function toggleManualFollow(){
+  var cur=manualFollowMode();
+  localStorage.setItem('wb_dxb_manual_follow',cur?'0':'1');
+  _dueCache=null;_dueOwnersCache=null;_dueDay='';_dueOwnersDay='';
+  renderToday();renderClients();
+}
 function dueClients(){
   var td=toDay();
   if(_dueCache&&_dueDay===td)return _dueCache;
   var t0=today0(),out=[];
   (D.clients||[]).forEach(function(c){
+    if(manualFollowMode()&&!c.snoozeTo)return;            // 手动跟进模式：未显式设改期的不自动弹
     if(hideImportedTodo()&&_importedUntouched(c))return;   // 跳过未联系的导入客户
     if(c.level&&c.level.indexOf('D')===0&&(c.stage||0)>=LADDER.length)return;
     var n=nextFollow(c);
@@ -1795,6 +1810,7 @@ function dueOwners(){
   if(_dueOwnersCache&&_dueOwnersDay===td)return _dueOwnersCache;
   var t0=today0(),out=[];
   (D.clients||[]).forEach(function(c){
+    if(manualFollowMode()&&!c.snoozeTo)return;            // 手动跟进模式：未显式设改期的不自动弹
     if(hideImportedTodo()&&_importedUntouched(c))return;   // 跳过未联系的导入客户
     if(c.ctype!=='owner')return;
     if(c.level&&c.level.indexOf('D')===0&&(c.stage||0)>=LADDER.length)return;
@@ -1839,6 +1855,9 @@ function doFollow(id){
   c.logs=c.logs||[];c.logs.push({d:toDay(),t:t});
   c.stage=(c.stage||0)+1;c.level=val('flLevel')||c.level;
   var sn=val('flSnooze');if(sn)c.snoozeTo=sn;else c.snoozeTo='';
+  // 同步写进「备注」栏（带日期前缀），让沟通要点在默认展开的需求/备注区直接可见
+  var add=toDay()+' '+t;
+  c.note=((c.note||'')?(c.note+'\n'):'')+add;
   counted();save();closeMask();renderAll();
   var nf=nextFollow(c);
   toast('已记录，下次 '+nf.date+' 提醒（已跟进 '+(c.logs||[]).length+' 次）');
@@ -1868,7 +1887,7 @@ function clientDetail(id){
     '<button class="btn edit" onclick="editClient(\''+c.id+'\')">编辑资料</button>'+
     '</div>'+
     findingPanelHtml(c.id)+
-    '<details class="client-section"><summary>跟进与带看</summary>'+followAndViewBody+'</details>'+
+    '<details class="client-section" open><summary>跟进与带看</summary>'+followAndViewBody+'</details>'+
     '<div class="client-delete"><button class="btn danger" onclick="delClient(\''+c.id+'\')">删除该客户</button></div>';
   $('mask').classList.add('on');
   if(typeof FINDING_ENABLED!=='undefined'&&FINDING_ENABLED)refreshFindingResults(c.id);
